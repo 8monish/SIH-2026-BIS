@@ -718,7 +718,7 @@ export function initChatbot() {
 
     let replyText = '';
     let isFromApi = false;
-    const candidateModels = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'];
+    const candidateModels = ['gemini-3.6-flash', 'gemini-2.5-flash'];
     const userApiKey = GEMINI_API_KEY;
 
     for (const model of candidateModels) {
