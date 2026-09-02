@@ -6,11 +6,13 @@
 import { initNavigation } from './navigation.js';
 import { initAnimations } from './animations.js';
 import { initChatbot } from './chatbot.js';
+import { initAccessibility } from './accessibility.js';
 
 export function initCommonPage() {
   initNavigation();
   initAnimations();
   initChatbot();
+  initAccessibility();
 
   // Highlight active link in navigation
   const currentPath = window.location.pathname.split('/').pop() || 'index.html';

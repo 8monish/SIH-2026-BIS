@@ -1,0 +1,321 @@
+/* ============================================================
+   BIS Portal — Accessibility Suite (a11y) Styles
+   High contrast, font scaling, dyslexic font, and focus styles
+   ============================================================ */
+
+/* ── 1. Floating Accessibility Widget & Sidebar Drawer ── */
+.a11y-trigger {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-primary-dark, #002b66);
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 9999px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 48, 130, 0.4);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.a11y-trigger:hover,
+.a11y-trigger:focus-visible {
+  background: var(--color-accent, #f26522);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(242, 101, 34, 0.5);
+  outline: 3px solid #ffcc00;
+}
+
+.a11y-trigger-icon {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+/* Modal Drawer */
+.a11y-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 100000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.a11y-panel-backdrop.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.a11y-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width: 90%;
+  max-width: 540px;
+  max-height: 85vh;
+  background: #ffffff;
+  color: #1e293b;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  z-index: 100001;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.a11y-panel-backdrop.active .a11y-panel {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  visibility: visible;
+}
+
+.a11y-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--color-primary-dark, #002b66);
+  color: #ffffff;
+}
+
+.a11y-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.a11y-close-btn {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.a11y-close-btn:hover,
+.a11y-close-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.2);
+  outline: 2px solid #ffcc00;
+}
+
+.a11y-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.a11y-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.a11y-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin: 0;
+}
+
+.a11y-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.a11y-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 2px solid #cbd5e1;
+  border-radius: 10px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.a11y-btn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.a11y-btn.active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.a11y-btn:focus-visible {
+  outline: 3px solid #f26522;
+  outline-offset: 2px;
+}
+
+.a11y-btn-icon {
+  font-size: 18px;
+}
+
+.a11y-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: #f1f5f9;
+  border-top: 1px solid #e2e8f0;
+}
+
+.a11y-reset-btn {
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.a11y-reset-btn:hover {
+  background: #dc2626;
+}
+
+/* ── 2. HIGH CONTRAST DARK THEME ── */
+body.a11y-high-contrast-dark {
+  background-color: #000000 !important;
+  color: #ffff00 !important;
+}
+
+body.a11y-high-contrast-dark *,
+body.a11y-high-contrast-dark *:not(.a11y-panel *):not(.chatbot-window *) {
+  background-color: #000000 !important;
+  color: #ffff00 !important;
+  border-color: #ffff00 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+body.a11y-high-contrast-dark a {
+  color: #00ffff !important;
+  text-decoration: underline !important;
+}
+
+body.a11y-high-contrast-dark button {
+  background-color: #111111 !important;
+  color: #00ff00 !important;
+  border: 2px solid #00ff00 !important;
+}
+
+/* ── 3. HIGH CONTRAST LIGHT THEME ── */
+body.a11y-high-contrast-light {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+body.a11y-high-contrast-light *,
+body.a11y-high-contrast-light *:not(.a11y-panel *):not(.chatbot-window *) {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #000000 !important;
+  box-shadow: none !important;
+  font-weight: 700 !important;
+}
+
+body.a11y-high-contrast-light a {
+  color: #0000ff !important;
+  text-decoration: underline !important;
+}
+
+/* ── 4. MONOCHROME / GRAYSCALE MODE ── */
+body.a11y-grayscale {
+  filter: grayscale(100%) !important;
+}
+
+/* ── 5. INVERT COLORS MODE ── */
+body.a11y-invert {
+  filter: invert(100%) hue-rotate(180deg) !important;
+}
+
+body.a11y-invert img,
+body.a11y-invert video {
+  filter: invert(100%) hue-rotate(180deg) !important;
+}
+
+/* ── 6. DYSLEXIC FRIENDLY FONT ── */
+body.a11y-dyslexic-font,
+body.a11y-dyslexic-font * {
+  font-family: "Comic Sans MS", "Comic Sans", "OpenDyslexic", sans-serif !important;
+  letter-spacing: 0.05em !important;
+  word-spacing: 0.1em !important;
+}
+
+/* ── 7. SPACING & LINE HEIGHT ACCESSIBILITY ── */
+body.a11y-wide-spacing,
+body.a11y-wide-spacing * {
+  letter-spacing: 0.12em !important;
+  word-spacing: 0.2em !important;
+}
+
+body.a11y-spacious-lines,
+body.a11y-spacious-lines * {
+  line-height: 2.0 !important;
+}
+
+/* ── 8. HIGHLIGHT LINKS ── */
+body.a11y-highlight-links a {
+  background-color: #fef08a !important;
+  color: #000000 !important;
+  text-decoration: underline !important;
+  font-weight: 700 !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+  border: 1px dashed #d97706 !important;
+}
+
+/* ── 9. BIG CURSOR ── */
+body.a11y-big-cursor,
+body.a11y-big-cursor * {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="%23f26522" stroke="%23ffffff" stroke-width="1.5"><path d="M3 3l7 18 3-7 7-3L3 3z"/></svg>'), auto !important;
+}
+
+/* ── 10. PAUSE ANIMATIONS ── */
+body.a11y-stop-animations *,
+body.a11y-stop-animations *::before,
+body.a11y-stop-animations *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Focus Indicator for Keyboard Users */
+*:focus-visible {
+  outline: 3px solid #f26522 !important;
+  outline-offset: 3px !important;
+}
