@@ -1,49 +1,90 @@
-# 🇮🇳 BIS Intelligent Compliance Assistant | SIH 2026
+# BIS Intelligent Compliance Assistant
 
 > **Smart India Hackathon 2026 — Problem Statement ID: SIH26107**  
-> **Title:** *AI-Powered Intelligent Assistance for Indian Standards and BIS Services for Industries and Consumers*  
-> **Theme:** Smart Automation | **Category:** Software
+> *AI-Powered Intelligent Assistance for Indian Standards and BIS Services for Industries and Consumers*
+
+An intelligent, web-based platform for the Bureau of Indian Standards (BIS), featuring automated e-verification, Indian Standards exploration, consumer grievance redressal, gold hallmarking compensation calculations, and a RAG-grounded Multimodal AI Co-Pilot (ManakBot AI).
 
 ---
 
-## 🏛️ Project Features & Capabilities
+## ⚡ Quick Start
 
-- **Strict Brand Integrity**: Preserves official BIS Royal Blue (`#003082`) and Saffron (`#f26522`) color identity.
-- **e-Verification Suite (`verify-licence.html`)**: Instant authentication of ISI Mark (CM/L), Gold Hallmarking (6-digit HUID), CRS Electronics (R-Number), and Foreign Manufacturers (FMCS) with live QR camera simulator and printable digital certificates.
-- **Indian Standards Catalog (`standards-search.html`)**: Interactive browser for 22,000+ IS Codes with division filtering, mandatory QCO tagging, and in-browser standard previewer modal.
-- **Consumer Grievance Redressal (`grievance-redressal.html`)**: 4-step complaint registration wizard, live investigation stepper timeline, and statutory gold purity compensation calculator (BIS Act 2016).
-- **Assaying & Hallmarking Directory (`hallmarking-centres.html`)**: Directory of recognized AHC centres and certified jewellers.
-- **Laboratory Network LIMS (`lims-lab-directory.html`)**: Apex Central and Regional Testing Labs directory with sample test fee estimator and turnaround time schedule.
-- **ManakBot AI Studio (`manak-bot.html`)**: Fullscreen conversational AI assistant with Speech-to-Text, voice readout, transcript exporter, and Google Gemini API live bridge.
-- **Agentic Multimodal OCR & Vision**: Upload document photos or receipts directly into the AI drawer to auto-fill form fields across the site.
-- **FastAPI Backend Services (`backend/`)**: Compliance roadmap generation, MongoDB data models, and document management.
+Run the project immediately using the launcher scripts:
+
+### Linux / macOS
+```bash
+./run.sh
+```
+
+### Windows
+```cmd
+run.bat
+```
+
+The launcher will start the static web server at **`http://localhost:8080`** (and optional FastAPI backend at `http://localhost:8000`), then automatically open the portal in your default browser.
 
 ---
 
-## 🚀 Quick Start
+## 🛠️ Portal Features & Modules
+
+| Module | File | Description |
+| :--- | :--- | :--- |
+| **ManakBot AI Co-Pilot** | [`manak-bot.html`](manak-bot.html) / [`assets/js/chatbot.js`](assets/js/chatbot.js) | Fullscreen & sidebar AI co-pilot with RAG knowledge search (IS Codes & BIS Act 2016), Multimodal Vision OCR receipt auto-filling, Speech-to-Text, and voice readout. |
+| **e-Verification Suite** | [`verify-licence.html`](verify-licence.html) | Instant verification for ISI Marks (CM/L), Gold Hallmarking (6-digit HUID), CRS Electronics (R-Number), and Foreign Manufacturers (FMCS) with live camera QR scanner. |
+| **Indian Standards Catalog** | [`standards-search.html`](standards-search.html) | Catalog of 22,000+ IS specifications with technical division filters, Quality Control Order (QCO) tags, and document clause preview modal. |
+| **Consumer Grievances** | [`grievance-redressal.html`](grievance-redressal.html) | 4-step complaint registration wizard, live investigation stepper timeline, and statutory gold purity compensation calculator under BIS Act 2016. |
+| **Hallmarking Directory** | [`hallmarking-centres.html`](hallmarking-centres.html) | Filterable directory of recognized Assaying & Hallmarking Centres (AHC) across states and pincodes. |
+| **LIMS Laboratory Network** | [`lims-lab-directory.html`](lims-lab-directory.html) | Directory of Central, Regional, and NABL-accredited labs with sample testing fee estimator and turnaround schedules. |
+
+---
+
+## 💻 Manual Setup
 
 ### 1. Web Portal Frontend
-
 ```bash
-# Start local static HTTP server
+# Serve static site on port 8080
 python3 -m http.server 8080
 ```
-Open `http://localhost:8080` in your browser.
+Open `http://localhost:8080` in your web browser.
 
-### 2. FastAPI Backend Server (Optional)
-
+### 2. FastAPI Backend & MongoDB (Optional)
 ```bash
 cd backend
-~/.local/bin/uv venv --python 3.12 venv
-source venv/bin/activate
-~/.local/bin/uv pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+
+# Create & activate environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies & start API
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
-Visit `http://localhost:8000/docs` for Swagger API documentation.
+View interactive Swagger API docs at `http://localhost:8000/docs`.
 
 ---
 
-## 👥 Contributors
+## 📂 Project Structure
 
-- **SIH 2026 Team**
-- Bureau of Indian Standards (BIS)
+```
+.
+├── assets/
+│   ├── css/          # Modular CSS tokens, layout, chatbot, and theme variables
+│   ├── images/       # Official BIS branding assets and logos
+│   └── js/           # Actuators, RAG search engine, vision OCR, and page modules
+├── backend/          # FastAPI REST endpoints, MongoDB database schemas, and models
+├── docs/             # Technical knowledge base and documentation
+├── grievance-redressal.html
+├── hallmarking-centres.html
+├── index.html
+├── lims-lab-directory.html
+├── manak-bot.html
+├── standards-search.html
+├── verify-licence.html
+├── run.sh            # Linux / macOS launcher script
+└── run.bat           # Windows launcher batch script
+```
+
+---
+
+## 📜 License & Branding
+Official Bureau of Indian Standards (BIS) colors (`#003082` Royal Blue and `#f26522` Saffron) and emblem specifications are strictly maintained across all user interface components.
