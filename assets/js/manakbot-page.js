@@ -136,30 +136,38 @@ export function initManakBotPage() {
   // 4. Google AI Studio Gemini API Bridge with BIS Domain Restrictions
   async function callLiveFreeLLMAPI(userPrompt) {
     const userKey = apiKeyInput?.value?.trim() || GEMINI_API_KEY;
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${userKey}`;
+    const candidateModels = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-1.5-pro'];
     const systemContext = "You are ManakBot AI, the official intelligent assistant for the Bureau of Indian Standards (BIS), Ministry of Consumer Affairs, Food & Public Distribution, Govt of India.\n\nSTRICT DOMAIN RESTRICTIONS & BOUNDARIES:\n1. ONLY answer queries regarding BIS services, ISI certification, Hallmarking (HUID), e-Verification, LIMS testing labs, Indian Standards (e.g., IS 10500, IS 456), consumer grievance redressal, gold purity compensation calculations, and navigating this BIS portal.\n2. If a query is unrelated to BIS (e.g. general knowledge, programming, non-BIS topics), politely decline and state: 'I am specialized exclusively as the Bureau of Indian Standards (BIS) Co-Pilot. I can assist you with ISI licence verification, Hallmarking HUID, Indian Standards, LIMS testing fees, or Consumer Grievances.'\n3. Maintain a professional, polite tone without emojis. Provide step-by-step guidance.";
 
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemContext }]
-        },
-        contents: [
-          { role: "user", parts: [{ text: userPrompt }] }
-        ]
-      })
-    });
+    for (const model of candidateModels) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userKey}`;
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            system_instruction: {
+              parts: [{ text: systemContext }]
+            },
+            contents: [
+              { role: "user", parts: [{ text: userPrompt }] }
+            ]
+          })
+        });
 
-    if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
-    const data = await res.json();
-    if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-      return data.candidates[0].content.parts[0].text.trim();
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+            return data.candidates[0].content.parts[0].text.trim();
+          }
+        }
+      } catch (err) {
+        console.log(`Gemini API model ${model} error:`, err);
+      }
     }
-    throw new Error('Invalid response structure from Gemini API');
+    throw new Error('All Gemini API candidate models were unavailable');
   }
 
   // 5. Append Message in Studio

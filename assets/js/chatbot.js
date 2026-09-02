@@ -718,48 +718,53 @@ export function initChatbot() {
 
     let replyText = '';
     let isFromApi = false;
+    const candidateModels = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-1.5-pro'];
+    const userApiKey = GEMINI_API_KEY;
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+    for (const model of candidateModels) {
+      if (isFromApi) break;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+        const targetEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userApiKey}`;
 
-      const userApiKey = GEMINI_API_KEY;
-      const targetEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${userApiKey}`;
-
-      const response = await fetch(targetEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [
+        const response = await fetch(targetEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            system_instruction: {
+              parts: [
+                {
+                  text: `You are ManakBot AI Co-Pilot, the official RAG-grounded agent for the Bureau of Indian Standards (BIS), Ministry of Consumer Affairs, Food & Public Distribution, Government of India.\n\nSTRICT BOUNDARIES:\n1. ONLY answer queries regarding BIS services, ISI certification, Hallmarking (HUID), e-Verification, LIMS testing labs, Indian Standards (e.g., IS 10500, IS 456, IS 1417, IS 4151), consumer grievance redressal, gold purity compensation calculations, and navigating this BIS portal.\n2. Provide concise, step-by-step guidance without emojis.`
+                }
+              ]
+            },
+            contents: [
               {
-                text: `You are ManakBot AI Co-Pilot, the official RAG-grounded agent for the Bureau of Indian Standards (BIS), Ministry of Consumer Affairs, Food & Public Distribution, Government of India.\n\nSTRICT BOUNDARIES:\n1. ONLY answer queries regarding BIS services, ISI certification, Hallmarking (HUID), e-Verification, LIMS testing labs, Indian Standards (e.g., IS 10500, IS 456, IS 1417, IS 4151), consumer grievance redressal, gold purity compensation calculations, and navigating this BIS portal.\n2. Provide concise, step-by-step guidance without emojis.`
+                role: 'user',
+                parts: [{ text: text }]
               }
             ]
-          },
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: text }]
-            }
-          ]
-        })
-      });
+          })
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-          replyText = data.candidates[0].content.parts[0].text.trim();
-          isFromApi = true;
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+            replyText = data.candidates[0].content.parts[0].text.trim();
+            isFromApi = true;
+          }
+        } else {
+          console.log(`Gemini API candidate model ${model} returned status ${response.status}`);
         }
+      } catch (err) {
+        console.log(`Gemini API error with model ${model}:`, err);
       }
-    } catch (err) {
-      console.log('Gemini API call fallback to RAG Knowledge Engine:', err);
     }
 
     removeTypingIndicator();
