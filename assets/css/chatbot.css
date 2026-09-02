@@ -53,7 +53,7 @@
 /* ── FLOATING TRIGGER BUTTON ── */
 .chatbot-trigger {
   position: fixed;
-  bottom: 92px; /* Positioned cleanly above cya11y accessibility widget */
+  bottom: 96px; /* Positioned cleanly above round blue cya11y accessibility button */
   right: 24px;
   width: 58px;
   height: 58px;

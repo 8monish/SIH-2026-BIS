@@ -182,6 +182,33 @@ function bindPanelEvents() {
   if (trigger) trigger.addEventListener('click', openPanel);
   if (closeBtn) closeBtn.addEventListener('click', closePanel);
 
+  // Bind round blue official cya11y accessibility button (Document & Shadow DOM)
+  function bindCya11yButtons() {
+    document.querySelectorAll('.cya11y-menu-btn, .cya11y-widget, [aria-label*="Accessibility"], [title*="Accessibility"]').forEach(btn => {
+      btn.removeEventListener('click', openPanel);
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openPanel();
+      });
+    });
+
+    const cya11yContainer = document.getElementById('cya11y-container');
+    if (cya11yContainer && cya11yContainer.shadowRoot) {
+      cya11yContainer.shadowRoot.querySelectorAll('.cya11y-menu-btn, button').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openPanel();
+        });
+      });
+    }
+  }
+
+  bindCya11yButtons();
+  setTimeout(bindCya11yButtons, 500);
+  setTimeout(bindCya11yButtons, 1500);
+
   if (backdrop) {
     backdrop.addEventListener('click', (e) => {
       if (e.target === backdrop) closePanel();
