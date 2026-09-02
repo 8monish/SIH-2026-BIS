@@ -924,6 +924,20 @@ export function initChatbot() {
     const q = query.toLowerCase();
     const extracted = extractUserDetailsFromPrompt(query);
 
+    // 0. Comprehensive End-to-End Roadmaps & Workflows (From Scratch to Finish)
+    if (q.includes('roadmap') || q.includes('workflow') || q.includes('start to end') || q.includes('from scratch') || q.includes('how to start') || q.includes('guide') || q.includes('how does it work') || q.includes('steps to')) {
+      return {
+        text: `**Official Bureau of Indian Standards (BIS) Operational Roadmaps**:\n\nHere is your step-by-step guidance from start to finish based on your requirement:\n\n---\n\n### 🏭 **Roadmap 1: Manufacturer ISI Mark Certification (From Scratch)**\n1. **Standard Identification**: Search your product on our **Standards Catalog** (\`standards-search.html\`) to identify the applicable IS Code (e.g., IS 10500 for Water, IS 456 for Concrete, IS 4151 for Helmets) and check if covered under a mandatory Quality Control Order (QCO).\n2. **In-House Testing Setup**: Equip your factory according to the Scheme of Testing and Inspection (STI) with calibrated measuring gauges and qualified quality personnel.\n3. **Lab Testing Sample Benchmark**: Query our **LIMS Testing Directory** (\`lims-lab-directory.html\`) to locate an accredited BIS/NABL testing laboratory and calculate turnaround fees.\n4. **Application Submission**: File your online application via [Manakonline Portal](https://www.manakonline.in) with factory layout, test reports, and machinery details.\n5. **Factory Audit & Sample Seizure**: A designated BIS Technical Officer conducts on-site factory verification and draws independent market samples.\n6. **Grant of Licence (CM/L)**: Upon test compliance, BIS grants your 10-digit **CM/L-XXXXXXXXX** licence, publicly verifiable in real time.\n\n---\n\n### 🛡️ **Roadmap 2: Consumer Grievance & Substandard Product Redressal**\n1. **Authenticate Label**: Check the 10-digit CM/L or 6-digit HUID on the product via our **e-Verification Suite** (\`verify-licence.html\`).\n2. **Gather Evidence**: Take photos of the substandard item, tax invoice, and label markings.\n3. **File Grievance**: Complete our 4-step wizard on **Consumer Redressal** (\`grievance-redressal.html\`) to generate a unique 16-character tracking docket ID (e.g. \`BIS-GR-2026-1048\`).\n4. **Surveillance & Raid**: BIS Enforcement Officers execute market raids and seize non-compliant batches under Section 28 & 29 of the BIS Act, 2016.\n5. **Redressal & Refund**: Track the live investigation timeline until compensation or replacement is disbursed.\n\n---\n\n### 💍 **Roadmap 3: Gold Jewellery Purity Verification & 2x Compensation**\n1. **Inspect Mandatory Hallmarks**: Verify the 3 marks (BIS Logo, Purity e.g. 22K916, and 6-digit alphanumeric HUID) on **e-Verification**.\n2. **Independent Assaying**: Locate an accredited centre on **Assaying & Hallmarking Centres** (\`hallmarking-centres.html\`) for touchstone/XRF purity testing.\n3. **Calculate Statutory Compensation**: If purity fails, enter the weights on our **Gold Calculator** to compute **2x value shortfall penalty** plus ₹500 assay refund (Section 14 BIS Act 2016).\n4. **File Redressal Claim**: Submit the assay certificate for statutory recovery.`,
+        suggestions: ['Start Manufacturer Roadmap', 'File Consumer Grievance', 'Verify 10-digit CM/L', 'Gold 2x Calculator'],
+        actions: [
+          { text: 'Standards Catalog', url: 'standards-search.html' },
+          { text: 'e-Verification', url: 'verify-licence.html' },
+          { text: 'Consumer Grievance', url: 'grievance-redressal.html' },
+          { text: 'LIMS Lab Network', url: 'lims-lab-directory.html' }
+        ]
+      };
+    }
+
     // 1. Grievance / Complaint / Substandard Product
     if (q.includes('complaint') || q.includes('grievance') || q.includes('fake') || q.includes('substandard') || q.includes('counterfeit') || q.includes('file') || q.includes('bad') || q.includes('defect')) {
       let product = extracted.product || 'Two-Wheeler Protective Helmet';
