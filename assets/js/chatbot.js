@@ -718,52 +718,61 @@ export function initChatbot() {
 
     let replyText = '';
     let isFromApi = false;
-    const candidateModels = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-1.5-pro'];
+    const candidateModels = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'];
     const userApiKey = GEMINI_API_KEY;
 
     for (const model of candidateModels) {
       if (isFromApi) break;
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
-        const targetEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userApiKey}`;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (isFromApi) break;
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s generous timeout
 
-        const response = await fetch(targetEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          signal: controller.signal,
-          body: JSON.stringify({
-            system_instruction: {
-              parts: [
+          const targetEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userApiKey}`;
+
+          const response = await fetch(targetEndpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            signal: controller.signal,
+            body: JSON.stringify({
+              system_instruction: {
+                parts: [
+                  {
+                    text: `You are ManakBot AI Co-Pilot, the official RAG-grounded intelligent assistant for the Bureau of Indian Standards (BIS), Ministry of Consumer Affairs, Food & Public Distribution, Government of India.\n\nSTRICT INSTRUCTIONS:\n1. Provide clear, accurate, and comprehensive explanations regarding BIS services, ISI certification (CM/L), Hallmarking (HUID), e-Verification, LIMS testing labs, Indian Standards (IS Codes), consumer grievance redressal, and gold purity compensation rules under the BIS Act, 2016.\n2. Answer the user's exact query directly with bullet points or numbered lists where appropriate.`
+                  }
+                ]
+              },
+              contents: [
                 {
-                  text: `You are ManakBot AI Co-Pilot, the official RAG-grounded agent for the Bureau of Indian Standards (BIS), Ministry of Consumer Affairs, Food & Public Distribution, Government of India.\n\nSTRICT BOUNDARIES:\n1. ONLY answer queries regarding BIS services, ISI certification, Hallmarking (HUID), e-Verification, LIMS testing labs, Indian Standards (e.g., IS 10500, IS 456, IS 1417, IS 4151), consumer grievance redressal, gold purity compensation calculations, and navigating this BIS portal.\n2. Provide concise, step-by-step guidance without emojis.`
+                  role: 'user',
+                  parts: [{ text: text }]
                 }
               ]
-            },
-            contents: [
-              {
-                role: 'user',
-                parts: [{ text: text }]
-              }
-            ]
-          })
-        });
+            })
+          });
 
-        clearTimeout(timeoutId);
+          clearTimeout(timeoutId);
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-            replyText = data.candidates[0].content.parts[0].text.trim();
-            isFromApi = true;
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+              replyText = data.candidates[0].content.parts[0].text.trim();
+              isFromApi = true;
+              break;
+            }
+          } else if (response.status === 503 && attempt === 0) {
+            // Temporary high demand spike — wait 400ms and retry
+            await new Promise(r => setTimeout(r, 400));
+          } else {
+            console.log(`Gemini API model ${model} status:`, response.status);
+            break;
           }
-        } else {
-          console.log(`Gemini API candidate model ${model} returned status ${response.status}`);
+        } catch (err) {
+          console.log(`Gemini API attempt error with model ${model}:`, err);
         }
-      } catch (err) {
-        console.log(`Gemini API error with model ${model}:`, err);
       }
     }
 
@@ -772,9 +781,13 @@ export function initChatbot() {
     if (isFromApi && replyText) {
       appendMessage(replyText, 'bot', ragResult.suggestions || [], ragResult.actions || [], ragResult.agentTask);
       speakText(replyText);
-    } else {
+    } else if (ragResult && ragResult.text) {
       appendMessage(ragResult.text, 'bot', ragResult.suggestions, ragResult.actions, ragResult.agentTask);
       speakText(ragResult.text);
+    } else {
+      const fallbackQueryText = `**Bureau of Indian Standards (BIS) Guidance**:\n\nRegarding your query about **"${text}"**:\n\n• **BIS Overview**: BIS is the National Standards Body of India responsible for standard formulation, product certification (ISI Mark), hallmarking of precious metals (HUID), and compulsory registration of electronics (CRS).\n• **Indian Standards (IS Codes)**: Standard specifications (e.g. IS 10500 for Drinking Water, IS 456 for Concrete, IS 4151 for Helmets) define safety and quality criteria.\n\nYou can use the e-Verification suite or Standards Catalog above for instant verification.`;
+      appendMessage(fallbackQueryText, 'bot', ['Verify Licence', 'Standards Catalog', 'Grievance Portal']);
+      speakText(fallbackQueryText);
     }
 
     const lowerQ = text.toLowerCase();
