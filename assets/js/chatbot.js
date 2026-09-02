@@ -442,42 +442,30 @@ export function initChatbot() {
         );
       }, 500);
     } else if (intent === 'autofill_grievance_sample') {
-      appendMessage('Auto-fill sample grievance for counterfeit helmet', 'user');
-      executeAgentTask('autofill_grievance', {
-        category: 'Misuse of ISI Mark (Substandard Product)',
-        product: 'Two-Wheeler Protective Helmet (IS 4151)',
-        seller: 'Metro Roadside Gear Shop / Online Retailer',
-        price: '1250',
-        details: 'Purchased two-wheeler helmet with counterfeit ISI mark. Shell cracked on minor drop.'
-      }, 'Autofilling sample helmet grievance form...');
+      if (input) {
+        input.value = 'How do I file a consumer complaint for a fake or defective ISI helmet?';
+        handleSendMessage();
+      }
     } else if (intent === 'calc_gold_sample') {
-      appendMessage('Calculate gold purity compensation for 15g of 22K gold tested as 18K', 'user');
-      executeAgentTask('calculate_gold', {
-        weight: '15',
-        claimed: '22',
-        tested: '18',
-        rate: '7200'
-      }, 'Calculating statutory gold compensation under BIS Act 2016...');
+      if (input) {
+        input.value = 'Calculate gold compensation for 15g of 22K gold tested as 18K';
+        handleSendMessage();
+      }
     } else if (intent === 'verify_isi_sample') {
-      appendMessage('Verify ISI Mark CM/L-8400123456', 'user');
-      executeAgentTask('verify_licence', {
-        type: 'isi',
-        code: 'CM/L-8400123456'
-      }, 'Verifying ISI licence CM/L-8400123456 in official database...');
+      if (input) {
+        input.value = 'How do I verify ISI Licence CM/L-8400123456?';
+        handleSendMessage();
+      }
     } else if (intent === 'search_water_standard') {
-      appendMessage('Search and preview IS 10500 Drinking Water Standard', 'user');
-      executeAgentTask('search_standards', {
-        query: 'IS 10500',
-        division: 'CED',
-        openPreview: true
-      }, 'Searching IS 10500 and launching standard preview modal...');
+      if (input) {
+        input.value = 'Show standard specifications and preview for IS 10500 Drinking Water';
+        handleSendMessage();
+      }
     } else if (intent === 'calc_lims_sample') {
-      appendMessage('Calculate testing fee for packaged drinking water samples', 'user');
-      executeAgentTask('estimate_lims', {
-        category: 'water',
-        qty: '2',
-        express: true
-      }, 'Calculating testing fee for water samples at BIS Apex Laboratory...');
+      if (input) {
+        input.value = 'How can I estimate lab testing fees for packaged water samples?';
+        handleSendMessage();
+      }
     }
   }
 
@@ -703,31 +691,37 @@ export function initChatbot() {
     reader.readAsDataURL(file);
   }
 
+  let isChatProcessing = false;
+
   // ── SEND MESSAGE LOGIC WITH RAG GROUNDING & LIVE GEMINI API ──
   async function handleSendMessage() {
-    const text = input.value.trim();
+    if (isChatProcessing) return;
+    const text = input ? input.value.trim() : '';
     if (!text) return;
 
-    appendMessage(text, 'user');
-    input.value = '';
+    isChatProcessing = true;
+    if (input) input.disabled = true;
+    if (sendBtn) sendBtn.disabled = true;
 
-    showTypingIndicator();
+    try {
+      appendMessage(text, 'user');
+      if (input) input.value = '';
 
-    // Query RAG Knowledge Base and Agentic Intent Engine
-    const ragResult = queryBISKnowledgeRAG(text);
+      showTypingIndicator();
 
-    let replyText = '';
-    let isFromApi = false;
-    const candidateModels = ['gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-3.6-flash'];
-    const userApiKey = GEMINI_API_KEY;
+      // Query RAG Knowledge Base and Agentic Intent Engine
+      const ragResult = queryBISKnowledgeRAG(text);
 
-    for (const model of candidateModels) {
-      if (isFromApi) break;
-      for (let attempt = 0; attempt < 2; attempt++) {
+      let replyText = '';
+      let isFromApi = false;
+      const candidateModels = ['gemini-3.5-flash', 'gemini-3.1-flash-lite'];
+      const userApiKey = GEMINI_API_KEY;
+
+      for (const model of candidateModels) {
         if (isFromApi) break;
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s generous timeout
+          const timeoutId = setTimeout(() => controller.abort(), 4500); // 4.5s fast timeout
 
           const targetEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userApiKey}`;
 
@@ -741,7 +735,7 @@ export function initChatbot() {
               system_instruction: {
                 parts: [
                   {
-                    text: `You are ManakBot AI Co-Pilot, the official RAG-grounded intelligent assistant for the Bureau of Indian Standards (BIS), Ministry of Consumer Affairs, Food & Public Distribution, Government of India.\n\nSTRICT INSTRUCTIONS:\n1. Provide clear, accurate, and comprehensive explanations regarding BIS services, ISI certification (CM/L), Hallmarking (HUID), e-Verification, LIMS testing labs, Indian Standards (IS Codes), consumer grievance redressal, and gold purity compensation rules under the BIS Act, 2016.\n2. Answer the user's exact query directly with bullet points or numbered lists where appropriate.`
+                    text: `You are ManakBot AI Co-Pilot, the official RAG-grounded intelligent assistant for the Bureau of Indian Standards (BIS), Ministry of Consumer Affairs, Food & Public Distribution, Government of India.\n\nSTRICT INSTRUCTIONS:\n1. Provide clear, accurate, and comprehensive explanations regarding BIS services, ISI certification (CM/L), Hallmarking (HUID), e-Verification, LIMS testing labs, Indian Standards (IS Codes), consumer grievance redressal, and gold purity compensation rules under the BIS Act, 2016.\n2. Answer the user's exact query directly with concise bullet points or numbered lists where appropriate.`
                   }
                 ]
               },
@@ -763,48 +757,46 @@ export function initChatbot() {
               isFromApi = true;
               break;
             }
-          } else if (response.status === 503 && attempt === 0) {
-            // Temporary high demand spike — wait 400ms and retry
-            await new Promise(r => setTimeout(r, 400));
-          } else {
-            console.log(`Gemini API model ${model} status:`, response.status);
-            break;
           }
         } catch (err) {
-          console.log(`Gemini API attempt error with model ${model}:`, err);
+          console.log(`Model ${model} notice:`, err.message || err);
         }
       }
-    }
 
-    removeTypingIndicator();
+      removeTypingIndicator();
 
-    const suggestions = ragResult?.suggestions || ['Verify Licence', 'Standards Catalog', 'Grievance Portal'];
-    const actions = ragResult?.actions || [];
-    const agentTask = ragResult?.agentTask || null;
+      const suggestions = ragResult?.suggestions || ['Verify Licence', 'Standards Catalog', 'Grievance Portal'];
+      const actions = ragResult?.actions || [];
+      const agentTask = ragResult?.agentTask || null;
 
-    if (isFromApi && replyText) {
-      appendMessage(replyText, 'bot', suggestions, actions, agentTask);
-      speakText(replyText);
-    } else if (ragResult && ragResult.text) {
-      appendMessage(ragResult.text, 'bot', suggestions, actions, agentTask);
-      speakText(ragResult.text);
-    } else {
-      let dynamicAnswer = `**Bureau of Indian Standards (BIS) Guidance**:\n\nRegarding **"${text}"**:\n\n`;
-      const qLower = text.toLowerCase();
-      if (qLower.includes('bis') || qLower.includes('is') || qLower.includes('bureau')) {
-        dynamicAnswer += `• **BIS (Bureau of Indian Standards)**: The National Standards Body of India established under the *BIS Act, 2016*. BIS formulates quality standards, issues ISI Mark licenses, manages Gold Hallmarking (HUID), and enforces mandatory Quality Control Orders (QCOs).\n• **IS (Indian Standard)**: Technical specification documents published by BIS defining safety, performance, and quality benchmarks (e.g., **IS 10500** for Drinking Water, **IS 456** for Concrete, **IS 4151** for Helmets).\n• **Summary**: **BIS** is the organization/authority, while **IS** is the standard specification code created by BIS.`;
+      if (isFromApi && replyText) {
+        appendMessage(replyText, 'bot', suggestions, actions, agentTask);
+        speakText(replyText);
+      } else if (ragResult && ragResult.text) {
+        appendMessage(ragResult.text, 'bot', suggestions, actions, agentTask);
+        speakText(ragResult.text);
       } else {
-        dynamicAnswer += `• **BIS Core Functions**: BIS is responsible for Product Certification (ISI Mark), Gold & Silver Hallmarking (HUID), Compulsory Electronics Registration (CRS), and LIMS Laboratory Testing.\n• **Verification & Standards**: You can query the e-Verification suite or Standards Catalog using the shortcuts below.`;
+        let dynamicAnswer = `**Bureau of Indian Standards (BIS) Guidance**:\n\nRegarding **"${text}"**:\n\n`;
+        const qLower = text.toLowerCase();
+        if (qLower.includes('bis') || qLower.includes('is') || qLower.includes('bureau')) {
+          dynamicAnswer += `• **BIS (Bureau of Indian Standards)**: The National Standards Body of India established under the *BIS Act, 2016*. BIS formulates quality standards, issues ISI Mark licenses, manages Gold Hallmarking (HUID), and enforces mandatory Quality Control Orders (QCOs).\n• **IS (Indian Standard)**: Technical specification documents published by BIS defining safety, performance, and quality benchmarks (e.g., **IS 10500** for Drinking Water, **IS 456** for Concrete, **IS 4151** for Helmets).\n• **Summary**: **BIS** is the organization/authority, while **IS** is the standard specification code created by BIS.`;
+        } else {
+          dynamicAnswer += `• **BIS Core Functions**: BIS is responsible for Product Certification (ISI Mark), Gold & Silver Hallmarking (HUID), Compulsory Electronics Registration (CRS), and LIMS Laboratory Testing.\n• **Verification & Standards**: You can query the e-Verification suite or Standards Catalog using the shortcuts below.`;
+        }
+        appendMessage(dynamicAnswer, 'bot', suggestions, actions, agentTask);
+        speakText(dynamicAnswer);
       }
-      appendMessage(dynamicAnswer, 'bot', suggestions, actions, agentTask);
-      speakText(dynamicAnswer);
-    }
-
-    const lowerQ = text.toLowerCase();
-    const explicitFillRequested = lowerQ.includes('autofill') || lowerQ.includes('fill form') || lowerQ.includes('fill my details') || lowerQ.includes('execute action') || lowerQ.includes('fill it');
-
-    if (agentTask && explicitFillRequested) {
-      executeAgentTask(agentTask.action, agentTask.data, agentTask.hudMsg);
+    } catch (criticalErr) {
+      console.warn('ManakBot handling notice:', criticalErr);
+      appendMessage('I am ready for your query. What standard, licence, or grievance can I assist you with?', 'bot', ['Verify Licence', 'Standards Catalog', 'Grievance Portal']);
+    } finally {
+      removeTypingIndicator();
+      isChatProcessing = false;
+      if (input) {
+        input.disabled = false;
+        setTimeout(() => input.focus(), 50);
+      }
+      if (sendBtn) sendBtn.disabled = false;
     }
   }
 
