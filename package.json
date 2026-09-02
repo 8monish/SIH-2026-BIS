@@ -4,11 +4,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "python3 -m http.server 8080",
-    "serve": "python3 -m http.server 8080",
-    "build": "echo 'Static multi-page web application ready for deployment'",
+    "dev": "vite",
+    "serve": "vite",
+    "build": "vite build",
     "lint": "echo 'No lint errors'",
-    "preview": "python3 -m http.server 8080"
+    "preview": "vite preview --port 8080"
   },
   "dependencies": {
     "clsx": "^2.1.1",
