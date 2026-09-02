@@ -326,4 +326,117 @@ export function initGrievance() {
       }
     });
   }
+
+  // ── 4. Officer / Admin Vigilance Console ──
+  initAdminConsole();
+
+  function initAdminConsole() {
+    const toggleBtn = document.getElementById('btn-toggle-admin-login');
+    const loginBox = document.getElementById('admin-login-box');
+    const queueView = document.getElementById('admin-queue-view');
+    const submitLoginBtn = document.getElementById('btn-admin-submit-login');
+    const logoutBtn = document.getElementById('btn-admin-logout');
+    const tableWrap = document.getElementById('admin-dockets-table-wrap');
+
+    let isAdminLoggedIn = false;
+
+    if (toggleBtn && loginBox) {
+      toggleBtn.addEventListener('click', () => {
+        if (isAdminLoggedIn) return;
+        loginBox.style.display = loginBox.style.display === 'none' ? 'block' : 'none';
+      });
+    }
+
+    if (submitLoginBtn) {
+      submitLoginBtn.addEventListener('click', () => {
+        const id = document.getElementById('admin-user-id')?.value?.trim();
+        const pin = document.getElementById('admin-user-pin')?.value?.trim();
+
+        if ((id === 'admin@bis.gov.in' || id === 'BIS-OFFICER-DBO1') && (pin === 'bis2026' || pin === 'admin123')) {
+          isAdminLoggedIn = true;
+          loginBox.style.display = 'none';
+          if (toggleBtn) toggleBtn.style.display = 'none';
+          if (queueView) queueView.style.display = 'block';
+          renderAdminDocketsTable();
+        } else {
+          alert('Invalid Officer Credentials. Use demo: admin@bis.gov.in / bis2026');
+        }
+      });
+    }
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        isAdminLoggedIn = false;
+        if (queueView) queueView.style.display = 'none';
+        if (toggleBtn) {
+          toggleBtn.style.display = 'inline-flex';
+          const statusText = document.getElementById('admin-auth-status-text');
+          if (statusText) statusText.textContent = 'Officer Login';
+        }
+      });
+    }
+
+    function renderAdminDocketsTable() {
+      if (!tableWrap) return;
+
+      const dockets = Object.values(MOCK_GRIEVANCE_TIMELINE);
+
+      tableWrap.innerHTML = `
+        <table class="table w-full text-xs" style="border-collapse: collapse;">
+          <thead>
+            <tr style="background: #f1f5f9; text-align: left; border-bottom: 2px solid #cbd5e1;">
+              <th style="padding: 8px;">Docket ID</th>
+              <th style="padding: 8px;">Complainant</th>
+              <th style="padding: 8px;">Category</th>
+              <th style="padding: 8px;">Current Status</th>
+              <th style="padding: 8px;">Stage</th>
+              <th style="padding: 8px; text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${dockets.map(d => `
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 8px; font-weight: 700; color: #003082;">${d.id}</td>
+                <td style="padding: 8px;">${d.complainant}</td>
+                <td style="padding: 8px; max-width: 180px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${d.category}</td>
+                <td style="padding: 8px;"><span class="badge ${d.currentStep >= 5 ? 'badge-success' : 'badge-primary'}">${d.status}</span></td>
+                <td style="padding: 8px; font-weight: bold;">Step ${d.currentStep} of 5</td>
+                <td style="padding: 8px; text-align: right;">
+                  <button class="btn btn-primary btn-sm btn-advance-stage" data-id="${d.id}" style="font-size: 10px; padding: 3px 8px;">
+                    ${d.currentStep < 5 ? 'Advance Stage →' : 'Completed ✓'}
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      tableWrap.querySelectorAll('.btn-advance-stage').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const docId = e.currentTarget.getAttribute('data-id');
+          const target = MOCK_GRIEVANCE_TIMELINE[docId];
+          if (target && target.currentStep < 5) {
+            target.currentStep += 1;
+            if (target.currentStep === 2) target.status = 'Allocated to Enforcement Officer';
+            if (target.currentStep === 3) target.status = 'Surveillance Raid & Sample Seizure';
+            if (target.currentStep === 4) target.status = 'Lab Test Failure & Show-Cause Notice';
+            if (target.currentStep === 5) target.status = 'Resolved — Compensation Awarded';
+
+            try {
+              localStorage.setItem('bis_grievance_records', JSON.stringify(MOCK_GRIEVANCE_TIMELINE));
+            } catch(err) {}
+
+            renderAdminDocketsTable();
+
+            // If currently tracking this docket in status card, re-render
+            const trackInput = document.getElementById('track-docket-input');
+            if (trackInput && trackInput.value.trim().toUpperCase() === docId) {
+              renderGrievanceStatus(docId);
+            }
+          }
+        });
+      });
+    }
+  }
 }

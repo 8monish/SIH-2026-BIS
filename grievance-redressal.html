@@ -340,6 +340,49 @@
             <div id="grievance-status-results"></div>
           </div>
 
+          <!-- Officer / Admin Vigilance Console -->
+          <div class="card p-6 shadow-xl border border-gray-200" id="admin-vigilance-section" style="border-top: 4px solid var(--color-primary);">
+            <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+              <div>
+                <span class="badge badge-primary mb-1">REGULATORY CONSOLE</span>
+                <h2 class="text-xl font-bold text-primary">BIS Officer / Admin Vigilance Queue</h2>
+              </div>
+              <button id="btn-toggle-admin-login" class="btn btn-outline btn-sm">
+                <span id="admin-auth-status-text">Officer Login</span>
+              </button>
+            </div>
+            <p class="text-xs text-muted mb-4">Internal regulatory view for BIS Enforcement Officers to review citizen dockets and update case stages.</p>
+
+            <!-- Admin Login Form -->
+            <div id="admin-login-box" class="p-4 bg-gray-50 rounded-xl border border-gray-200 mb-4" style="display: none;">
+              <div class="grid grid-2 gap-3 mb-3">
+                <div>
+                  <label class="form-label text-xs">Officer / Admin ID</label>
+                  <input type="text" id="admin-user-id" class="form-control text-sm" placeholder="e.g. admin@bis.gov.in" value="admin@bis.gov.in">
+                </div>
+                <div>
+                  <label class="form-label text-xs">Security PIN / Password</label>
+                  <input type="password" id="admin-user-pin" class="form-control text-sm" placeholder="Default PIN: bis2026" value="bis2026">
+                </div>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-muted">Demo Credentials: <strong>admin@bis.gov.in</strong> / <strong>bis2026</strong></span>
+                <button id="btn-admin-submit-login" class="btn btn-primary btn-sm">Authenticate Officer</button>
+              </div>
+            </div>
+
+            <!-- Admin Live Queue (Shown when authenticated) -->
+            <div id="admin-queue-view" style="display: none;">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-success">✓ Authenticated: BIS Vigilance & Enforcement Wing (Delhi Branch Office-I)</span>
+                <button id="btn-admin-logout" class="text-xs text-danger font-semibold hover:underline">Log Out</button>
+              </div>
+              <div id="admin-dockets-table-wrap" class="overflow-x-auto">
+                <!-- Dockets table rendered dynamically by grievance.js -->
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- Right Sidebar: Gold Hallmarking Compensation Calculator & Helpline -->
