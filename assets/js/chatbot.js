@@ -773,7 +773,9 @@ export function initChatbot() {
     }
 
     const lowerQ = text.toLowerCase();
-    if (ragResult.agentTask && (lowerQ.includes('fill') || lowerQ.includes('calc') || lowerQ.includes('verify') || lowerQ.includes('preview') || lowerQ.includes('execute') || lowerQ.includes('run') || lowerQ.includes('complaint') || lowerQ.includes('helmet') || lowerQ.includes('gold'))) {
+    const explicitFillRequested = lowerQ.includes('autofill') || lowerQ.includes('fill form') || lowerQ.includes('fill my details') || lowerQ.includes('execute action') || lowerQ.includes('fill it');
+
+    if (ragResult.agentTask && explicitFillRequested) {
       executeAgentTask(ragResult.agentTask.action, ragResult.agentTask.data, ragResult.agentTask.hudMsg);
     }
   }
@@ -833,26 +835,83 @@ export function initChatbot() {
     }
   }
 
+  // Helper to dynamically extract user details from prompt text
+  function extractUserDetailsFromPrompt(query) {
+    const data = {};
+    const q = query;
+
+    // Extract Name
+    const nameMatch = q.match(/(?:my name is|i am|name[:\s]+)([a-zA-Z\s]{2,30})/i);
+    if (nameMatch) data.name = nameMatch[1].trim();
+
+    // Extract Phone Number (10 digits)
+    const phoneMatch = q.match(/\b\d{10}\b/);
+    if (phoneMatch) data.phone = phoneMatch[0];
+
+    // Extract Email
+    const emailMatch = q.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch) data.email = emailMatch[0];
+
+    // Extract State
+    const stateMatch = q.match(/(?:state[:\s]+|from\s+)(delhi|mumbai|karnataka|tamil nadu|maharashtra|uttar pradesh|gujarat|kerala|punjab|haryana|west bengal)/i);
+    if (stateMatch) data.state = stateMatch[1].trim();
+
+    // Extract Product Name
+    const productMatch = q.match(/(?:product|item|buying|bought)[:\s]+([^,\n\.]+)/i);
+    if (productMatch) data.product = productMatch[1].trim();
+
+    // Extract Seller / Shop / Vendor
+    const sellerMatch = q.match(/(?:seller|shop|store|vendor|from)[:\s]+([^,\n\.]+)/i);
+    if (sellerMatch) data.seller = sellerMatch[1].trim();
+
+    // Extract Price
+    const priceMatch = q.match(/(?:price|cost|rs|inr|₹)[:\s]*(\d+)/i);
+    if (priceMatch) data.price = priceMatch[1];
+
+    // Extract Details / Problem
+    const detailsMatch = q.match(/(?:complaint|issue|details|problem)[:\s]+([^,\n\.]+)/i);
+    if (detailsMatch) data.details = detailsMatch[1].trim();
+
+    // Extract Gold Weight & Carat
+    const weightMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:g|gram|grams)/i);
+    if (weightMatch) data.weight = weightMatch[1];
+
+    const caratsMatch = q.match(/(\d+)\s*k(?:arat)?.*?(\d+)\s*k(?:arat)?/i);
+    if (caratsMatch) {
+      data.claimed = caratsMatch[1];
+      data.tested = caratsMatch[2];
+    } else {
+      const singleCarat = q.match(/(\d+)\s*k(?:arat)?/i);
+      if (singleCarat) data.claimed = singleCarat[1];
+    }
+
+    const rateMatch = q.match(/(?:rate|gold rate)[:\s]*(\d+)/i);
+    if (rateMatch) data.rate = rateMatch[1];
+
+    return data;
+  }
+
   // ── 4. RAG KNOWLEDGE BASE & NEURAL SEARCH ENGINE ──
   function queryBISKnowledgeRAG(query) {
     const q = query.toLowerCase();
+    const extracted = extractUserDetailsFromPrompt(query);
 
     // 1. Grievance / Complaint / Substandard Product
     if (q.includes('complaint') || q.includes('grievance') || q.includes('fake') || q.includes('substandard') || q.includes('counterfeit') || q.includes('file') || q.includes('bad') || q.includes('defect')) {
-      let product = 'Two-Wheeler Protective Helmet';
+      let product = extracted.product || 'Two-Wheeler Protective Helmet';
       let category = 'Misuse of ISI Mark (Substandard Product)';
-      let details = 'Product purchased with defective/counterfeit ISI mark. Material failed on normal usage.';
+      let details = extracted.details || 'Product purchased with defective/counterfeit ISI mark. Material failed on normal usage.';
 
       if (q.includes('cement')) {
-        product = 'Portland Cement 43 Grade (IS 269)';
-        details = 'Cement bags received without proper ISI mark and batch number. Mortar failed to set within standard time.';
+        product = extracted.product || 'Portland Cement 43 Grade (IS 269)';
+        details = extracted.details || 'Cement bags received without proper ISI mark and batch number. Mortar failed to set within standard time.';
       } else if (q.includes('water')) {
-        product = 'Packaged Drinking Water (IS 14543)';
-        details = 'Bottles supplied with duplicate ISI mark and pungent odour. Retesting requested.';
+        product = extracted.product || 'Packaged Drinking Water (IS 14543)';
+        details = extracted.details || 'Bottles supplied with duplicate ISI mark and pungent odour. Retesting requested.';
       } else if (q.includes('gold') || q.includes('hallmark') || q.includes('jewel')) {
-        product = '22K Gold Jewellery (IS 1417)';
+        product = extracted.product || '22K Gold Jewellery (IS 1417)';
         category = 'Gold Hallmarking Under-caratage (Purity Shortage)';
-        details = 'Jewellery sold as 22K (916) but independent assay report showed 18K purity shortfall.';
+        details = extracted.details || 'Jewellery sold as 22K (916) but independent assay report showed 18K purity shortfall.';
       }
 
       return {
@@ -861,7 +920,17 @@ export function initChatbot() {
         actions: [{ text: 'Open Grievance Portal', url: 'grievance-redressal.html' }],
         agentTask: {
           action: 'autofill_grievance',
-          data: { product, category, details, seller: 'Online Retailer / Local Vendor', price: '1500' },
+          data: {
+            name: extracted.name || 'Rohit Verma',
+            phone: extracted.phone || '9876543210',
+            email: extracted.email || 'rohit.verma@example.com',
+            state: extracted.state || 'Delhi',
+            product: product,
+            category: category,
+            details: details,
+            seller: extracted.seller || 'Online Retailer / Local Vendor',
+            price: extracted.price || '1500'
+          },
           hudMsg: `Auto-filling ${product} grievance details...`
         }
       };
@@ -871,14 +940,19 @@ export function initChatbot() {
     if (q.includes('gold') || q.includes('carat') || q.includes('karat') || q.includes('compensation') || q.includes('huid') || q.includes('hallmark')) {
       return {
         text: `**RAG Knowledge Match — Gold Hallmarking & Statutory Compensation Rules**:\n\n• **Mandatory Markings**: Every hallmarked gold artefact in India must bear 3 marks: BIS Emblem, Purity Grade (e.g. 22K916), and a **6-digit alphanumeric HUID**.\n• **Statutory Compensation (BIS Act 2016, Section 14)**: If hallmarked gold fails purity tests, the buyer is entitled to **2x the purity shortfall** plus full testing fee reimbursement.\n\nI can calculate your statutory compensation or verify any 6-digit HUID code in the national database.`,
-        suggestions: ['Calculate Gold Compensation (15g 22K vs 18K)', 'Verify HUID AB1234', 'Locate AHC Centres'],
+        suggestions: ['Calculate Gold Compensation', 'Verify HUID AB1234', 'Locate AHC Centres'],
         actions: [
           { text: 'Gold Calculator', url: 'grievance-redressal.html#gold-calc-section' },
           { text: 'Verify HUID', url: 'verify-licence.html' }
         ],
         agentTask: {
           action: 'calculate_gold',
-          data: { weight: '15', claimed: '22', tested: '18', rate: '7200' },
+          data: {
+            weight: extracted.weight || '15',
+            claimed: extracted.claimed || '22',
+            tested: extracted.tested || '18',
+            rate: extracted.rate || '7200'
+          },
           hudMsg: 'Calculating statutory gold purity compensation...'
         }
       };
