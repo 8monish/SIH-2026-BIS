@@ -255,6 +255,22 @@ export function initVerification() {
     });
   }
 
+  // Auto-fill and execute from URL Search Parameters (e.g. from ManakBot AI)
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramCode = urlParams.get('code');
+  const paramType = urlParams.get('type') || 'isi';
+  if (paramCode && inputField) {
+    if (typeSelect) typeSelect.value = paramType;
+    inputField.value = paramCode;
+    tabBtns.forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-type') === paramType);
+    });
+    updateInputPlaceholder(paramType);
+    setTimeout(() => {
+      executeVerification(paramType, paramCode);
+    }, 150);
+  }
+
   // QR Scanner Modal Simulator
   if (qrScannerBtn && qrModal) {
     qrScannerBtn.addEventListener('click', () => {

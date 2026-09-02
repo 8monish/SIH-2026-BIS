@@ -638,54 +638,26 @@ export function initChatbot() {
 
       if (isVisionSuccess && extractedText) {
         const lower = extractedText.toLowerCase();
-        let agentTask = null;
+        let actionUrl = '';
+        let actionText = '';
 
         if (lower.includes('gold') || lower.includes('karat') || lower.includes('carat') || lower.includes('huid') || lower.includes('jewel')) {
-          agentTask = {
-            action: 'calculate_gold',
-            data: { weight: '12.5', claimed: '22', tested: '18', rate: '7200' },
-            hudMsg: 'Multimodal Vision extracted gold receipt parameters! Auto-filling gold compensation calculator...'
-          };
+          actionUrl = 'grievance-redressal.html?weight=12.5&claimed=22&tested=18&rate=7200#gold-calc-section';
+          actionText = '⚖️ Open Pre-Filled Gold Calculator';
         } else if (lower.includes('cml') || lower.includes('licence') || lower.includes('isi') || lower.includes('r-') || lower.includes('crs')) {
-          agentTask = {
-            action: 'verify_licence',
-            data: { type: 'isi', code: 'CM/L-8400123456' },
-            hudMsg: 'Multimodal Vision extracted licence number! Verifying in e-Verification suite...'
-          };
+          actionUrl = 'verify-licence.html?type=isi&code=CM/L-8400123456';
+          actionText = '🔍 Verify Licence CM/L-8400123456';
         } else {
-          agentTask = {
-            action: 'autofill_grievance',
-            data: {
-              product: 'Substandard Certified Product (Extracted from Image)',
-              category: 'Misuse of ISI Mark (Substandard Product)',
-              seller: 'Extracted Retailer / Vendor',
-              price: '1850',
-              details: extractedText.substring(0, 150)
-            },
-            hudMsg: 'Multimodal Vision extracted product certificate! Auto-filling grievance registration form...'
-          };
+          actionUrl = `grievance-redressal.html?product=${encodeURIComponent('Certified Product (From Scan)')}&category=${encodeURIComponent('Misuse of ISI Mark (Substandard Product)')}&seller=${encodeURIComponent('Extracted Retailer')}&price=1850&details=${encodeURIComponent(extractedText.substring(0, 120))}`;
+          actionText = '📝 Open Pre-Filled Grievance Form';
         }
 
-        appendMessage(`**Multimodal Vision Analysis Completed**:\n\n${extractedText}`, 'bot', ['Execute Auto-fill Now', 'Verify Licence', 'Gold Calculator'], [], agentTask);
-        if (agentTask) {
-          executeAgentTask(agentTask.action, agentTask.data, agentTask.hudMsg);
-        }
+        appendMessage(`**Multimodal Vision Analysis Completed**:\n\n${extractedText}`, 'bot', ['Verify Licence', 'Gold Calculator'], [{ text: actionText, url: actionUrl }]);
       } else {
         // Fallback OCR Engine
-        const fallbackMsg = `**Image Scan Completed (Vision Engine)**:\n\n• **Detected Document Type**: BIS Quality Certificate / Invoice\n• **Extracted Data**: Product: Two-Wheeler Protective Helmet (IS 4151), CM/L Code: CM/L-8400123456, Price: ₹1,250.\n\nI am now auto-filling the **Consumer Grievance Form** across all 4 steps with these extracted parameters.`;
-        const fallbackTask = {
-          action: 'autofill_grievance',
-          data: {
-            product: 'Two-Wheeler Protective Helmet (IS 4151)',
-            category: 'Misuse of ISI Mark (Substandard Product)',
-            seller: 'Metro Roadside Gear Shop / Online Retailer',
-            price: '1250',
-            details: 'Vision scan detected helmet with defective ISI mark stamp. Shell cracked on minor impact.'
-          },
-          hudMsg: 'Auto-filling Grievance Form with extracted image OCR data...'
-        };
-        appendMessage(fallbackMsg, 'bot', ['Execute Auto-fill Now', 'Verify CM/L-8400123456'], [], fallbackTask);
-        executeAgentTask(fallbackTask.action, fallbackTask.data, fallbackTask.hudMsg);
+        const fallbackMsg = `**Image Scan Completed (Vision Engine)**:\n\n• **Detected Document Type**: BIS Quality Certificate / Invoice\n• **Extracted Data**: Product: Two-Wheeler Protective Helmet (IS 4151), CM/L Code: CM/L-8400123456, Price: ₹1,250.\n\nClick below to open the **Consumer Grievance Form** pre-filled with these extracted parameters.`;
+        const fallbackUrl = `grievance-redressal.html?product=${encodeURIComponent('Two-Wheeler Protective Helmet (IS 4151)')}&category=${encodeURIComponent('Misuse of ISI Mark (Substandard Product)')}&seller=${encodeURIComponent('Metro Roadside Gear Shop')}&price=1250&details=${encodeURIComponent('Vision scan detected helmet with defective ISI mark stamp. Shell cracked on minor impact.')}`;
+        appendMessage(fallbackMsg, 'bot', ['Verify CM/L-8400123456', 'Standards Catalog'], [{ text: '📝 Open Pre-Filled Grievance Form', url: fallbackUrl }]);
       }
     };
     reader.readAsDataURL(file);
@@ -948,47 +920,29 @@ export function initChatbot() {
         details = extracted.details || 'Jewellery sold as 22K (916) but independent assay report showed 18K purity shortfall.';
       }
 
+      const prefillUrl = `grievance-redressal.html?name=${encodeURIComponent(extracted.name || '')}&phone=${encodeURIComponent(extracted.phone || '')}&email=${encodeURIComponent(extracted.email || '')}&state=${encodeURIComponent(extracted.state || '')}&product=${encodeURIComponent(product)}&category=${encodeURIComponent(category)}&details=${encodeURIComponent(details)}&seller=${encodeURIComponent(extracted.seller || '')}&price=${encodeURIComponent(extracted.price || '')}`;
+
       return {
-        text: `**RAG Knowledge Match — BIS Consumer Grievance Portal**:\n\nUnder the **Bureau of Indian Standards Act, 2016 (Section 29)**, manufacturing or selling products with counterfeit or unauthorized ISI marks is a cognizable offence punishable with up to **2 years imprisonment and ₹2,00,000 fine**.\n\nI can autonomously execute the 4-step **Grievance Filing Registration** for **${product}** on your behalf right now.`,
-        suggestions: ['Execute Auto-fill Now', 'Gold Compensation Tool', 'Track Grievance Status'],
-        actions: [{ text: 'Open Grievance Portal', url: 'grievance-redressal.html' }],
-        agentTask: {
-          action: 'autofill_grievance',
-          data: {
-            name: extracted.name || 'Rohit Verma',
-            phone: extracted.phone || '9876543210',
-            email: extracted.email || 'rohit.verma@example.com',
-            state: extracted.state || 'Delhi',
-            product: product,
-            category: category,
-            details: details,
-            seller: extracted.seller || 'Online Retailer / Local Vendor',
-            price: extracted.price || '1500'
-          },
-          hudMsg: `Auto-filling ${product} grievance details...`
-        }
+        text: `**BIS Consumer Grievance — Complaint Draft Prepared**:\n\nUnder **BIS Act, 2016 (Section 29)**, manufacturing or marketing goods with counterfeit ISI marks carries up to **2 years imprisonment and ₹2,00,000 penalty**.\n\nHere are the details captured from your prompt:\n• **Complainant**: ${extracted.name || 'Citizen'} (${extracted.phone || 'Phone not provided'})\n• **Product**: ${product}\n• **Category**: ${category}\n• **Seller**: ${extracted.seller || 'Vendor / Retailer'}\n• **Issue**: ${details}\n\nClick below to open the **Consumer Grievance Portal** with these details already pre-filled.`,
+        suggestions: ['Verify 10-digit CM/L', 'Gold 2x Calculator', 'Track Grievance Docket'],
+        actions: [
+          { text: '📝 Open Pre-Filled Grievance Form', url: prefillUrl },
+          { text: 'Verify Licence', url: 'verify-licence.html' }
+        ]
       };
     }
 
     // 2. Gold Hallmarking / Purity Compensation
     if (q.includes('gold') || q.includes('carat') || q.includes('karat') || q.includes('compensation') || q.includes('huid') || q.includes('hallmark')) {
+      const goldUrl = `grievance-redressal.html?weight=${encodeURIComponent(extracted.weight || '15')}&claimed=${encodeURIComponent(extracted.claimed || '22')}&tested=${encodeURIComponent(extracted.tested || '18')}&rate=${encodeURIComponent(extracted.rate || '7200')}#gold-calc-section`;
+
       return {
-        text: `**RAG Knowledge Match — Gold Hallmarking & Statutory Compensation Rules**:\n\n• **Mandatory Markings**: Every hallmarked gold artefact in India must bear 3 marks: BIS Emblem, Purity Grade (e.g. 22K916), and a **6-digit alphanumeric HUID**.\n• **Statutory Compensation (BIS Act 2016, Section 14)**: If hallmarked gold fails purity tests, the buyer is entitled to **2x the purity shortfall** plus full testing fee reimbursement.\n\nI can calculate your statutory compensation or verify any 6-digit HUID code in the national database.`,
-        suggestions: ['Calculate Gold Compensation', 'Verify HUID AB1234', 'Locate AHC Centres'],
+        text: `**BIS Gold Hallmarking & Statutory Compensation**:\n\n• **Mandatory 3 Marks**: BIS Standard Logo, Purity (e.g. 22K916), and 6-digit alphanumeric **HUID**.\n• **Statutory Compensation (BIS Act 2016, Section 14)**: If hallmarked gold fails assay tests, the consumer is legally entitled to **2x the purity shortfall** plus refund of the ₹500 assaying fee.\n\nClick below to calculate your exact compensation or authenticate a 6-digit HUID:`,
+        suggestions: ['Verify 6-digit HUID', 'Locate Hallmarking Centres', 'File Gold Complaint'],
         actions: [
-          { text: 'Gold Calculator', url: 'grievance-redressal.html#gold-calc-section' },
-          { text: 'Verify HUID', url: 'verify-licence.html' }
-        ],
-        agentTask: {
-          action: 'calculate_gold',
-          data: {
-            weight: extracted.weight || '15',
-            claimed: extracted.claimed || '22',
-            tested: extracted.tested || '18',
-            rate: extracted.rate || '7200'
-          },
-          hudMsg: 'Calculating statutory gold purity compensation...'
-        }
+          { text: '⚖️ Open Pre-Filled Gold Calculator', url: goldUrl },
+          { text: 'Verify HUID on Portal', url: 'verify-licence.html?type=huid' }
+        ]
       };
     }
 
@@ -1002,17 +956,20 @@ export function initChatbot() {
       } else if (q.includes('fmcs') || q.includes('foreign')) {
         type = 'fmcs';
         code = 'CM/L-4000123456';
+      } else if (q.includes('huid')) {
+        type = 'huid';
+        code = 'AB1234';
       }
 
+      const verifyUrl = `verify-licence.html?type=${encodeURIComponent(type)}&code=${encodeURIComponent(code)}`;
+
       return {
-        text: `**RAG Knowledge Match — Official e-Verification Suite**:\n\n• **ISI Mark (CM/L)**: 10-digit format e.g. \`CM/L-XXXXXXXXX\`\n• **Gold Hallmark (HUID)**: 6-digit alphanumeric code e.g. \`AB1234\`\n• **CRS Electronics**: 8-digit R-number e.g. \`R-41001234\`\n\nI can query the official BIS registry for **${type.toUpperCase()} Licence (${code})** and show manufacturer name, validity status, and certified product scope.`,
-        suggestions: ['Verify CM/L-8400123456 (Water)', 'Verify CM/L-6300456789 (Helmet)', 'Verify R-41001234 (Laptop)'],
-        actions: [{ text: 'Open e-Verification Suite', url: 'verify-licence.html' }],
-        agentTask: {
-          action: 'verify_licence',
-          data: { type: type, code: code },
-          hudMsg: `Authenticating ${type.toUpperCase()} licence ${code}...`
-        }
+        text: `**BIS e-Verification Registry**:\n\n• **ISI Mark (CM/L)**: 10-digit licence format e.g. \`CM/L-8400123456\`\n• **Gold Hallmark (HUID)**: 6-digit alphanumeric code e.g. \`AB1234\`\n• **CRS Electronics**: 8-digit R-number e.g. \`R-41001234\`\n\nClick below to instantly verify **${code}** in the live national database:`,
+        suggestions: [`Verify CM/L-8400123456 (Water)`, `Verify CM/L-6300456789 (Helmet)`, `Verify R-41001234 (CRS)`],
+        actions: [
+          { text: `🔍 Verify ${code} on Portal`, url: verifyUrl },
+          { text: 'e-Verification Suite', url: 'verify-licence.html' }
+        ]
       };
     }
 
@@ -1026,15 +983,15 @@ export function initChatbot() {
       else if (q.includes('1293') || q.includes('plug') || q.includes('socket')) isCode = 'IS 1293';
       else if (q.includes('269') || q.includes('cement')) isCode = 'IS 269';
 
+      const stdUrl = `standards-search.html?q=${encodeURIComponent(isCode)}`;
+
       return {
-        text: `**RAG Knowledge Match — Indian Standards Catalog (22,000+ IS Codes)**:\n\nStandard **${isCode}** specifies mandatory technical requirements, sampling procedures, and quality control tests mandated under Quality Control Orders (QCOs).\n\nI can search the catalog and launch the in-browser document preview modal for **${isCode}**.`,
-        suggestions: [`Preview ${isCode}`, 'Search IS 456 (Concrete)', 'Search IS 4151 (Helmets)'],
-        actions: [{ text: 'Standards Catalog', url: 'standards-search.html' }],
-        agentTask: {
-          action: 'search_standards',
-          data: { query: isCode, openPreview: true },
-          hudMsg: `Querying catalog and opening preview modal for ${isCode}...`
-        }
+        text: `**Indian Standards Catalog (IS Codes)**:\n\nStandard **${isCode}** specifies mandatory safety requirements and quality control testing procedures enforced under national Quality Control Orders (QCOs).\n\nClick below to search the catalog and view the full standard details:`,
+        suggestions: [`Search ${isCode}`, 'Search IS 456 (Concrete)', 'Search IS 10500 (Water)'],
+        actions: [
+          { text: `📖 Search & Preview ${isCode}`, url: stdUrl },
+          { text: 'Browse Standards Catalog', url: 'standards-search.html' }
+        ]
       };
     }
 
@@ -1043,12 +1000,7 @@ export function initChatbot() {
       return {
         text: `**RAG Knowledge Match — BIS LIMS Laboratory Network**:\n\n• **Apex Regional Labs**: Central Lab (Sahibabad), Western (Mumbai), Southern (Chennai), Eastern (Kolkata), Northern (Chandigarh).\n• **Partner Labs**: 300+ NABL accredited testing facilities.\n\nI can calculate the estimated testing fee and turnaround time (TAT) for your product sample.`,
         suggestions: ['Estimate Water Testing Fee', 'Estimate Cement Testing Fee', 'Estimate Electronics Testing Fee'],
-        actions: [{ text: 'BIS LIMS Lab Directory', url: 'lims-lab-directory.html' }],
-        agentTask: {
-          action: 'estimate_lims',
-          data: { category: 'water', qty: '2', express: true },
-          hudMsg: 'Estimating testing fees & turnaround schedule...'
-        }
+        actions: [{ text: 'BIS LIMS Lab Directory', url: 'lims-lab-directory.html' }]
       };
     }
 
@@ -1057,7 +1009,7 @@ export function initChatbot() {
   }
 
   // ── 5. APPEND CHAT MESSAGE HELPER ──
-  function appendMessage(text, sender = 'bot', suggestions = [], actions = [], agentTask = null) {
+  function appendMessage(text, sender = 'bot', suggestions = [], actions = []) {
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     chatHistory.push({ sender, text, time });
 
@@ -1071,27 +1023,11 @@ export function initChatbot() {
 
     let extraHtml = '';
 
-    // Agent Action Card
-    if (agentTask) {
-      extraHtml += `
-        <div class="agent-action-card">
-          <div class="agent-action-card-header">
-            <span>Official Agent Action</span>
-          </div>
-          <div class="agent-action-buttons">
-            <button class="agent-act-btn btn-trigger-agent-task">
-              Execute Action Now
-            </button>
-          </div>
-        </div>
-      `;
-    }
-
     // Link Action Buttons
     if (actions && actions.length > 0) {
       extraHtml += `
         <div class="flex flex-wrap gap-2 mt-2">
-          ${actions.map(act => `<a href="${act.url}" class="agent-act-btn btn-secondary-act" style="font-size: 11px; padding: 4px 8px;">${act.text}</a>`).join('')}
+          ${actions.map(act => `<a href="${act.url}" class="agent-act-btn btn-secondary-act" style="font-size: 11px; padding: 5px 10px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">${act.text}</a>`).join('')}
         </div>
       `;
     }
@@ -1117,12 +1053,6 @@ export function initChatbot() {
     chatBody.appendChild(msgDiv);
     chatBody.scrollTop = chatBody.scrollHeight;
 
-    if (agentTask) {
-      msgDiv.querySelector('.btn-trigger-agent-task')?.addEventListener('click', () => {
-        executeAgentTask(agentTask.action, agentTask.data, agentTask.hudMsg);
-      });
-    }
-
     msgDiv.querySelectorAll('.chat-suggestion-chip').forEach(chip => {
       chip.addEventListener('click', () => {
         if (input) {
@@ -1139,7 +1069,7 @@ export function initChatbot() {
     indicator.innerHTML = `
       <div class="chat-msg-avatar">${BIS_LOGO_ICON}</div>
       <div class="chat-msg-bubble" style="padding: 8px 12px; font-style: italic; color: #64748b; font-size: 12px;">
-        <span>ManakBot Co-Pilot preparing action...</span>
+        <span>ManakBot Co-Pilot preparing response...</span>
       </div>
     `;
     chatBody.appendChild(indicator);
@@ -1148,23 +1078,5 @@ export function initChatbot() {
 
   function removeTypingIndicator() {
     document.querySelectorAll('.typing-indicator').forEach(el => el.remove());
-  }
-
-  // ── 6. CHECK FOR CROSS-PAGE PENDING AGENT ACTIONS ──
-  const pendingActionStr = sessionStorage.getItem('bis_pending_agent_action');
-  if (pendingActionStr) {
-    try {
-      const pending = JSON.parse(pendingActionStr);
-      sessionStorage.removeItem('bis_pending_agent_action');
-
-      toggleChat(true, true);
-
-      setTimeout(() => {
-        appendMessage(pending.message || `Executing automated workflow for ${pending.action}...`, 'bot');
-        executeAgentTask(pending.action, pending.data, `Executing ${pending.action}...`);
-      }, 700);
-    } catch (e) {
-      console.warn('Error parsing pending action:', e);
-    }
   }
 }

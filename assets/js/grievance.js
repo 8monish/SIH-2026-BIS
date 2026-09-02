@@ -80,6 +80,64 @@ export function initGrievance() {
     if (submitBtn) submitBtn.style.display = currentStep === totalSteps ? 'inline-flex' : 'none';
   }
 
+  // ── Auto-fill from URL Search Parameters (Pre-filled from ManakBot AI prompts) ──
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramName = urlParams.get('name');
+  const paramPhone = urlParams.get('phone');
+  const paramEmail = urlParams.get('email');
+  const paramState = urlParams.get('state');
+  const paramCategory = urlParams.get('category');
+  const paramDetails = urlParams.get('details');
+  const paramProduct = urlParams.get('product');
+  const paramSeller = urlParams.get('seller');
+  const paramPrice = urlParams.get('price');
+  const paramInvoice = urlParams.get('invoice');
+
+  if (paramName || paramProduct || paramDetails || paramCategory) {
+    if (paramName && document.getElementById('complainant-name')) document.getElementById('complainant-name').value = paramName;
+    if (paramPhone && document.getElementById('complainant-phone')) document.getElementById('complainant-phone').value = paramPhone;
+    if (paramEmail && document.getElementById('complainant-email')) document.getElementById('complainant-email').value = paramEmail;
+    if (paramState && document.getElementById('complainant-state')) document.getElementById('complainant-state').value = paramState;
+    if (paramCategory && document.getElementById('complaint-category')) document.getElementById('complaint-category').value = paramCategory;
+    if (paramDetails && document.getElementById('complaint-details')) document.getElementById('complaint-details').value = paramDetails;
+    if (paramProduct && document.getElementById('complaint-product-name')) document.getElementById('complaint-product-name').value = paramProduct;
+    if (paramSeller && document.getElementById('complaint-seller-name')) document.getElementById('complaint-seller-name').value = paramSeller;
+    if (paramPrice && document.getElementById('complaint-purchase-price')) document.getElementById('complaint-purchase-price').value = paramPrice;
+    if (paramInvoice && document.getElementById('complaint-invoice-no')) document.getElementById('complaint-invoice-no').value = paramInvoice;
+
+    // Show clean, non-intrusive alert banner above the wizard
+    const card = document.getElementById('complaint-wizard-card');
+    if (card && !document.getElementById('ai-prefill-banner')) {
+      const banner = document.createElement('div');
+      banner.id = 'ai-prefill-banner';
+      banner.className = 'p-3 mb-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-primary font-medium flex items-center justify-between';
+      banner.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span style="font-size:16px;">✨</span>
+          <span><strong>AI Autofill Applied:</strong> Complaint details have been populated from your prompt. Review and proceed below.</span>
+        </div>
+        <button type="button" class="text-xs font-bold text-muted hover:text-primary px-2" onclick="this.parentElement.remove()">✕</button>
+      `;
+      card.insertBefore(banner, card.firstChild);
+    }
+  }
+
+  // Pre-fill Gold Compensation Calculator if params exist
+  const paramWeight = urlParams.get('weight');
+  const paramClaimed = urlParams.get('claimed');
+  const paramTested = urlParams.get('tested');
+  const paramRate = urlParams.get('rate');
+
+  if (paramWeight || paramClaimed || paramTested) {
+    if (paramWeight && document.getElementById('calc-weight')) document.getElementById('calc-weight').value = paramWeight;
+    if (paramClaimed && document.getElementById('calc-claimed-carat')) document.getElementById('calc-claimed-carat').value = paramClaimed;
+    if (paramTested && document.getElementById('calc-tested-carat')) document.getElementById('calc-tested-carat').value = paramTested;
+    if (paramRate && document.getElementById('calc-gold-rate')) document.getElementById('calc-gold-rate').value = paramRate;
+
+    const calcBtn = document.getElementById('btn-calculate-comp');
+    if (calcBtn) setTimeout(() => calcBtn.click(), 100);
+  }
+
   if (nextBtn) {
     nextBtn.addEventListener('click', () => {
       if (validateCurrentStep(currentStep)) {
