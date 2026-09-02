@@ -33,6 +33,13 @@ if [ -d "backend" ] && [ -f "backend/main.py" ]; then
     (cd backend && $PY_CMD -m uvicorn main:app --host 0.0.0.0 --port 8000 &) 2>/dev/null || true
 fi
 
+# Check if port 8080 is already running
+if nc -z localhost 8080 2>/dev/null || (exec 3<>/dev/tcp/127.0.0.1/8080) 2>/dev/null; then
+    echo "🌐 BIS Web Portal is ALREADY running at http://localhost:8080!"
+    (xdg-open "http://localhost:8080" || open "http://localhost:8080") 2>/dev/null || true
+    exit 0
+fi
+
 # Start Frontend Static HTTP Server
 echo "🌐 Starting BIS Web Portal on http://localhost:8080..."
 echo "Press Ctrl+C to stop the servers."
