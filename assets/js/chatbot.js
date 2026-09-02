@@ -964,7 +964,7 @@ export function initChatbot() {
     }
 
     // 3. Licence Verification (ISI, HUID, CRS, FMCS)
-    if (q.includes('verify') || q.includes('cml') || q.includes('licence') || q.includes('license') || q.includes('crs') || q.includes('fmcs') || q.includes('isi') || q.includes('authentic')) {
+    if (q.includes('verify') || q.includes('cml') || q.includes('licence') || q.includes('license') || q.includes('crs') || q.includes('fmcs') || /\bisi\b/i.test(q) || q.includes('authentic')) {
       let type = 'isi';
       let code = 'CM/L-8400123456';
       if (q.includes('crs') || q.includes('electronic') || q.includes('r-')) {
@@ -988,7 +988,8 @@ export function initChatbot() {
     }
 
     // 4. Indian Standards Search & Document Clause Preview
-    if (q.includes('standard') || q.includes('is ') || q.includes('is1') || q.includes('is4') || q.includes('code') || q.includes('qco') || q.includes('specification')) {
+    const hasIsCodeMatch = /\bis\s*\d+\b/i.test(q) || q.includes('standard') || q.includes('is code') || q.includes('qco') || q.includes('specification');
+    if (hasIsCodeMatch) {
       let isCode = 'IS 10500';
       if (q.includes('456') || q.includes('concrete')) isCode = 'IS 456';
       else if (q.includes('4151') || q.includes('helmet')) isCode = 'IS 4151';
