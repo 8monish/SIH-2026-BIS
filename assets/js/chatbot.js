@@ -778,23 +778,33 @@ export function initChatbot() {
 
     removeTypingIndicator();
 
+    const suggestions = ragResult?.suggestions || ['Verify Licence', 'Standards Catalog', 'Grievance Portal'];
+    const actions = ragResult?.actions || [];
+    const agentTask = ragResult?.agentTask || null;
+
     if (isFromApi && replyText) {
-      appendMessage(replyText, 'bot', ragResult.suggestions || [], ragResult.actions || [], ragResult.agentTask);
+      appendMessage(replyText, 'bot', suggestions, actions, agentTask);
       speakText(replyText);
     } else if (ragResult && ragResult.text) {
-      appendMessage(ragResult.text, 'bot', ragResult.suggestions, ragResult.actions, ragResult.agentTask);
+      appendMessage(ragResult.text, 'bot', suggestions, actions, agentTask);
       speakText(ragResult.text);
     } else {
-      const fallbackQueryText = `**Bureau of Indian Standards (BIS) Guidance**:\n\nRegarding your query about **"${text}"**:\n\n• **BIS Overview**: BIS is the National Standards Body of India responsible for standard formulation, product certification (ISI Mark), hallmarking of precious metals (HUID), and compulsory registration of electronics (CRS).\n• **Indian Standards (IS Codes)**: Standard specifications (e.g. IS 10500 for Drinking Water, IS 456 for Concrete, IS 4151 for Helmets) define safety and quality criteria.\n\nYou can use the e-Verification suite or Standards Catalog above for instant verification.`;
-      appendMessage(fallbackQueryText, 'bot', ['Verify Licence', 'Standards Catalog', 'Grievance Portal']);
-      speakText(fallbackQueryText);
+      let dynamicAnswer = `**Bureau of Indian Standards (BIS) Guidance**:\n\nRegarding **"${text}"**:\n\n`;
+      const qLower = text.toLowerCase();
+      if (qLower.includes('bis') || qLower.includes('is') || qLower.includes('bureau')) {
+        dynamicAnswer += `• **BIS (Bureau of Indian Standards)**: The National Standards Body of India established under the *BIS Act, 2016*. BIS formulates quality standards, issues ISI Mark licenses, manages Gold Hallmarking (HUID), and enforces mandatory Quality Control Orders (QCOs).\n• **IS (Indian Standard)**: Technical specification documents published by BIS defining safety, performance, and quality benchmarks (e.g., **IS 10500** for Drinking Water, **IS 456** for Concrete, **IS 4151** for Helmets).\n• **Summary**: **BIS** is the organization/authority, while **IS** is the standard specification code created by BIS.`;
+      } else {
+        dynamicAnswer += `• **BIS Core Functions**: BIS is responsible for Product Certification (ISI Mark), Gold & Silver Hallmarking (HUID), Compulsory Electronics Registration (CRS), and LIMS Laboratory Testing.\n• **Verification & Standards**: You can query the e-Verification suite or Standards Catalog using the shortcuts below.`;
+      }
+      appendMessage(dynamicAnswer, 'bot', suggestions, actions, agentTask);
+      speakText(dynamicAnswer);
     }
 
     const lowerQ = text.toLowerCase();
     const explicitFillRequested = lowerQ.includes('autofill') || lowerQ.includes('fill form') || lowerQ.includes('fill my details') || lowerQ.includes('execute action') || lowerQ.includes('fill it');
 
-    if (ragResult.agentTask && explicitFillRequested) {
-      executeAgentTask(ragResult.agentTask.action, ragResult.agentTask.data, ragResult.agentTask.hudMsg);
+    if (agentTask && explicitFillRequested) {
+      executeAgentTask(agentTask.action, agentTask.data, agentTask.hudMsg);
     }
   }
 
@@ -1036,22 +1046,8 @@ export function initChatbot() {
       };
     }
 
-    // 6. Dynamic RAG Domain Overview Response (For greetings, general chat, or unindexed queries)
-    return {
-      text: `Hello! I am **ManakBot AI Co-Pilot**, the official RAG-grounded intelligent agent for the **Bureau of Indian Standards (BIS)**.\n\nI am equipped to perform autonomous actions across this portal:\n\n• **📷 Multimodal Vision OCR**: Upload any image, receipt, or certificate to auto-fill forms.\n• **Auto-fill Consumer Grievance**: Complete 4-step complaint forms for substandard items.\n• **Statutory Gold Calculator**: Compute 2x gold purity compensation under Section 14 BIS Act 2016.\n• **e-Verification**: Authenticate 10-digit CM/L (ISI), 6-digit HUID (Gold), and 8-digit CRS numbers.\n• **Standards Catalog**: Query 22,000+ Indian Standards (IS 10500, IS 456, IS 4151, IS 1417).\n\nWhat requirement can I assist or execute for you today?`,
-      suggestions: [
-        'Auto-Fill Grievance Form',
-        'Calculate Gold Compensation',
-        'Verify ISI CM/L Licence',
-        'Search Indian Standards',
-        'Estimate Lab Testing Fees'
-      ],
-      actions: [
-        { text: 'e-Verification', url: 'verify-licence.html' },
-        { text: 'Standards Catalog', url: 'standards-search.html' },
-        { text: 'Grievance Portal', url: 'grievance-redressal.html' }
-      ]
-    };
+    // Unindexed general query -> return null to allow dynamic AI / offline synthesis
+    return null;
   }
 
   // ── 5. APPEND CHAT MESSAGE HELPER ──
