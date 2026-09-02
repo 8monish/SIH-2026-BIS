@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>ManakBot AI Studio — Intelligent Virtual Assistant — BIS</title>
+  <meta name="description" content="Engage with ManakBot AI, the official conversational AI assistant of the Bureau of Indian Standards (BIS). Features voice chat, standards analysis, and Gemini AI bridge.">
+  
+  <link rel="stylesheet" href="assets/css/variables.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/layout.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/animations.css">
+  <link rel="stylesheet" href="assets/css/chatbot.css">
+
+  <style>
+    .studio-chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 620px;
+      background: #ffffff;
+      border-radius: var(--radius-2xl);
+      border: 1px solid var(--color-border);
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+    }
+    .studio-chat-body {
+      flex: 1;
+      padding: var(--space-6);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      background: var(--color-bg);
+    }
+    .btn-mic {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--color-primary-50);
+      color: var(--color-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      border: 1px solid var(--color-border);
+    }
+    .btn-mic:hover {
+      background: var(--color-primary);
+      color: #ffffff;
+    }
+    .btn-mic.listening {
+      background: var(--color-accent);
+      color: #ffffff;
+      animation: pulseGlow 1.5s infinite;
+    }
+    .prompt-card {
+      background: #ffffff;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-4);
+      cursor: pointer;
+      transition: all var(--transition-base);
+    }
+    .prompt-card:hover {
+      border-color: var(--color-primary);
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Tricolor Strip -->
+  <div class="tricolor-strip"></div>
+
+  <!-- Top Accessibility Bar -->
+  <div class="topbar">
+    <div class="container">
+      <div class="topbar-left">
+        <span>Government of India</span>
+        <span>|</span>
+        <span>Bureau of Indian Standards (BIS)</span>
+      </div>
+      <div class="topbar-right">
+        <span class="text-xs text-white">Helpline: <strong>1800-11-0001</strong></span>
+        <a href="index.html" class="lang-toggle">Home</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sticky Navbar -->
+  <header class="navbar">
+    <div class="container">
+      <a href="index.html" class="nav-brand">
+        <div class="nav-brand-logo">
+          <img src="assets/images/bis-logo.png" alt="Bureau of Indian Standards Logo">
+        </div>
+        <div class="nav-brand-text">
+          <span class="brand-name">BUREAU OF INDIAN STANDARDS</span>
+          <span class="brand-tagline">National Standards Body of India • मानक: कार्यपालक:</span>
+        </div>
+      </a>
+
+      <nav class="nav-menu">
+        <div class="nav-item"><a href="index.html" class="nav-link">Home</a></div>
+        <div class="nav-item"><a href="verify-licence.html" class="nav-link">e-Verification</a></div>
+        <div class="nav-item"><a href="standards-search.html" class="nav-link">Indian Standards</a></div>
+        <div class="nav-item"><a href="hallmarking-centres.html" class="nav-link">Hallmarking (AHC)</a></div>
+        <div class="nav-item"><a href="grievance-redressal.html" class="nav-link">Consumer Redressal</a></div>
+        <div class="nav-item"><a href="lims-lab-directory.html" class="nav-link">LIMS Labs</a></div>
+        <div class="nav-item"><a href="manak-bot.html" class="nav-link active" style="color: var(--color-accent); font-weight: 700;">ManakBot AI</a></div>
+      </nav>
+
+      <div class="nav-actions">
+        <a href="verify-licence.html" class="btn btn-outline btn-sm">Verify Licence</a>
+        <button class="hamburger" aria-label="Toggle Navigation">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu">
+    <div class="flex flex-col gap-3">
+      <a href="index.html" class="nav-link">Home</a>
+      <a href="verify-licence.html" class="nav-link">e-Verification Suite</a>
+      <a href="standards-search.html" class="nav-link">Indian Standards Catalog</a>
+      <a href="hallmarking-centres.html" class="nav-link">Assaying & Hallmarking Centres</a>
+      <a href="grievance-redressal.html" class="nav-link">Consumer Grievance Portal</a>
+      <a href="lims-lab-directory.html" class="nav-link">BIS LIMS Testing Labs</a>
+      <a href="manak-bot.html" class="nav-link active" style="color: var(--color-accent); font-weight: 700;">ManakBot AI Studio</a>
+    </div>
+  </div>
+
+  <!-- Page Hero -->
+  <section class="section-sm gradient-primary text-white">
+    <div class="container text-center">
+      <span class="badge badge-accent mb-3">CONVERSATIONAL AI ASSISTANT</span>
+      <h1 class="text-3xl text-white font-extrabold mb-3">ManakBot AI Virtual Assistant Studio</h1>
+      <p class="text-base text-muted max-w-2xl mx-auto" style="color: rgba(255,255,255,0.85);">
+        Interactive natural language AI assistant trained on Indian Standards, ISI Certification, HUID Gold Hallmarking, and Consumer Grievance Redressal.
+      </p>
+    </div>
+  </section>
+
+  <!-- Studio Main -->
+  <main class="section">
+    <div class="container">
+
+      <div class="grid grid-3 gap-8">
+        
+        <!-- Left 2 Cols: Main Chat Studio -->
+        <div style="grid-column: span 2;">
+          
+          <div class="studio-chat-container">
+            
+            <!-- Chat Header -->
+            <div class="p-4 bg-primary text-white flex items-center justify-between flex-shrink-0" style="background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary)); border-bottom: 2px solid var(--color-accent);">
+              <div class="flex items-center gap-3">
+                <div class="chatbot-avatar" style="width: 42px; height: 42px; background: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 2px;">
+                  <img src="assets/images/bis-logo.png" alt="BIS Logo" style="height: 32px; width: auto; object-fit: contain;">
+                  <span class="online-indicator"></span>
+                </div>
+                <div>
+                  <h3 class="text-base font-bold text-white mb-0">ManakBot AI Studio</h3>
+                  <p class="text-xs" style="color: rgba(255,255,255,0.75);">Bureau of Indian Standards • Natural Language Assistant</p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <label class="flex items-center gap-2 text-xs text-white cursor-pointer font-medium">
+                  <input type="checkbox" id="toggle-speech-synthesis" checked style="accent-color: var(--color-accent);">
+                  <span>Voice Readout</span>
+                </label>
+
+                <button id="btn-export-chat" class="btn btn-outline-white btn-sm" title="Download Conversation Transcript">Export</button>
+                <button id="btn-clear-chat" class="btn btn-outline-white btn-sm" title="Clear Chat">Clear</button>
+              </div>
+            </div>
+
+            <!-- Messages Stream -->
+            <div class="studio-chat-body" id="studio-chat-messages"></div>
+
+            <!-- Studio Input Bar -->
+            <div class="p-4 bg-white border-t border-gray-200 flex items-center gap-3 flex-shrink-0">
+              <button id="btn-studio-mic" class="btn-mic" title="Click to speak (Voice Recognition)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              </button>
+              
+              <input type="text" id="studio-chat-input" class="form-control" placeholder="Ask about ISI Mark, 6-digit HUID, IS Standards, FMCS, or Complaints..." style="padding: 12px 16px; font-size: var(--text-sm);">
+              
+              <button id="btn-studio-send" class="btn btn-primary" style="padding: 12px 24px;">
+                Send →
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Right 1 Col: Quick Prompts & Settings -->
+        <div>
+          
+          <!-- Live Gemini API Bridge Card -->
+          <div class="card p-5 bg-white border border-gray-200 shadow-sm mb-6" style="border-top: 3px solid var(--color-accent);">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold text-primary uppercase tracking-wider">Live Gemini AI Bridge</h4>
+              <span class="badge badge-success text-xs">READY</span>
+            </div>
+            <p class="text-xs text-muted mb-3">Enter a Google Gemini API Key for live multimodal reasoning, or leave blank to use the high-fidelity offline BIS domain engine.</p>
+            <input type="password" id="gemini-api-key-input" class="form-control text-xs mb-2" placeholder="Optional: Paste AI Studio Gemini Key">
+            <span class="text-xs text-muted" style="font-size: 11px;">Keys remain client-side and are never stored.</span>
+          </div>
+
+          <!-- Quick Starter Prompts -->
+          <h4 class="text-xs font-bold text-primary uppercase tracking-wider mb-3">Popular Topics & Prompts</h4>
+          <div class="space-y-3">
+            <div class="prompt-card" data-prompt="How can a manufacturer apply for ISI Mark under the Simplified Scheme?">
+              <span class="text-xs text-accent font-bold block mb-1">Product Certification</span>
+              <strong class="text-xs text-text block">Simplified Procedure for ISI Mark grant within 30 days</strong>
+            </div>
+
+            <div class="prompt-card" data-prompt="What are the 3 mandatory marks to verify on gold jewellery?">
+              <span class="text-xs text-accent font-bold block mb-1">Gold Hallmarking</span>
+              <strong class="text-xs text-text block">Explain 3 marks & 6-digit HUID code lookup</strong>
+            </div>
+
+            <div class="prompt-card" data-prompt="How can I preview Indian Standard IS 10500 for drinking water for free?">
+              <span class="text-xs text-accent font-bold block mb-1">Indian Standards</span>
+              <strong class="text-xs text-text block">Free citizen access to IS 10500 Drinking Water</strong>
+            </div>
+
+            <div class="prompt-card" data-prompt="How do I claim 2x financial compensation for gold purity shortfall under BIS Act 2016?">
+              <span class="text-xs text-accent font-bold block mb-1">Consumer Redressal</span>
+              <strong class="text-xs text-text block">Claiming 2x compensation under BIS Act Section 15</strong>
+            </div>
+
+            <div class="prompt-card" data-prompt="What is Foreign Manufacturers Certification Scheme (FMCS) and AIR role?">
+              <span class="text-xs text-accent font-bold block mb-1">FMCS Scheme</span>
+              <strong class="text-xs text-text block">Foreign manufacturer compliance & AIR nomination</strong>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-bottom">
+      <span>© 2026 Bureau of Indian Standards, Ministry of Consumer Affairs, Govt. of India.</span>
+      <div class="flex gap-4">
+        <a href="index.html">Portal Home</a>
+        <a href="verify-licence.html">e-Verification</a>
+        <a href="standards-search.html">Standards Catalog</a>
+        <a href="grievance-redressal.html">Consumer Redressal</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script type="module">
+    import { initCommonPage } from './assets/js/common-nav.js';
+    import { initManakBotPage } from './assets/js/manakbot-page.js';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initCommonPage();
+      initManakBotPage();
+    });
+  </script>
+</body>
+</html>

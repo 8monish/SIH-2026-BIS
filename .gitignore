@@ -1,4 +1,7 @@
-# Environment variables
+# Dependencies & Environments
+node_modules/
+venv/
+.venv/
 .env
 .env.*
 
@@ -7,13 +10,11 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Virtual environment
-venv/
-.venv/
+# Uploads & Temp
+backend/uploads/*
+!backend/uploads/.gitkeep
 
-# IDE
+# IDE & OS
 .vscode/
-
-# OS
 .DS_Store
 Thumbs.db

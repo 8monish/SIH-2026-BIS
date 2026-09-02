@@ -1,0 +1,284 @@
+/* ============================================================
+   BIS Portal — Base Styles
+   Reset, Google Fonts, Typography, Utilities
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: var(--weight-normal);
+  line-height: var(--leading-normal);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+img, video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+a:hover { color: var(--color-accent); }
+
+ul, ol { list-style: none; }
+
+input, button, textarea, select {
+  font: inherit;
+}
+
+button { cursor: pointer; border: none; background: none; }
+
+/* ── Typography ── */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  color: var(--color-text);
+}
+
+h1 { font-size: var(--text-4xl); }
+h2 { font-size: var(--text-3xl); }
+h3 { font-size: var(--text-2xl); }
+h4 { font-size: var(--text-xl); }
+h5 { font-size: var(--text-lg); }
+h6 { font-size: var(--text-base); }
+
+p { line-height: var(--leading-relaxed); }
+
+/* ── Container ── */
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: var(--space-6);
+}
+
+/* ── Section Spacing ── */
+.section { padding-block: var(--space-16); }
+.section-sm { padding-block: var(--space-10); }
+.section-lg { padding-block: var(--space-24); }
+
+/* ── Section Titles ── */
+.section-header {
+  text-align: center;
+  margin-bottom: var(--space-12);
+}
+
+.section-label {
+  display: inline-block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: var(--space-2);
+}
+
+.section-title {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-extrabold);
+  color: var(--color-primary);
+  margin-bottom: var(--space-4);
+}
+
+.section-desc {
+  font-size: var(--text-lg);
+  color: var(--color-text-muted);
+  max-width: 640px;
+  margin-inline: auto;
+  line-height: var(--leading-relaxed);
+}
+
+/* ── Title Underline Accent ── */
+.section-title::after {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-saffron));
+  border-radius: var(--radius-full);
+  margin: var(--space-3) auto 0;
+}
+.section-title.left-align::after { margin-left: 0; }
+
+/* ── Utility Classes ── */
+.text-primary  { color: var(--color-primary); }
+.text-accent   { color: var(--color-accent); }
+.text-muted    { color: var(--color-text-muted); }
+.text-white    { color: var(--color-white); }
+.text-center   { text-align: center; }
+.text-left     { text-align: left; }
+.text-right    { text-align: right; }
+.text-sm       { font-size: var(--text-sm); }
+.text-lg       { font-size: var(--text-lg); }
+.text-xl       { font-size: var(--text-xl); }
+.font-semibold { font-weight: var(--weight-semibold); }
+.font-bold     { font-weight: var(--weight-bold); }
+
+.bg-primary { background-color: var(--color-primary); }
+.bg-accent  { background-color: var(--color-accent); }
+.bg-surface { background-color: var(--color-surface); }
+.bg-alt     { background-color: var(--color-bg-alt); }
+
+.flex        { display: flex; }
+.flex-col    { flex-direction: column; }
+.items-center{ align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.gap-2       { gap: var(--space-2); }
+.gap-4       { gap: var(--space-4); }
+.gap-6       { gap: var(--space-6); }
+.gap-8       { gap: var(--space-8); }
+
+.grid { display: grid; }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.col-span-2 { grid-column: span 2; }
+.col-span-3 { grid-column: span 3; }
+
+.hidden { display: none !important; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); border: 0;
+}
+
+.rounded-full { border-radius: var(--radius-full); }
+.rounded-lg   { border-radius: var(--radius-lg); }
+.rounded-xl   { border-radius: var(--radius-xl); }
+
+.shadow-md  { box-shadow: var(--shadow-md); }
+.shadow-lg  { box-shadow: var(--shadow-lg); }
+.shadow-xl  { box-shadow: var(--shadow-xl); }
+
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+
+/* ── Padding Utilities ── */
+.p-0 { padding: 0 !important; }
+.p-1 { padding: var(--space-1) !important; }
+.p-2 { padding: var(--space-2) !important; }
+.p-3 { padding: var(--space-3) !important; }
+.p-4 { padding: var(--space-4) !important; }
+.p-5 { padding: var(--space-5) !important; }
+.p-6 { padding: var(--space-6) !important; }
+.p-8 { padding: var(--space-8) !important; }
+
+.px-2 { padding-inline: var(--space-2) !important; }
+.px-3 { padding-inline: var(--space-3) !important; }
+.px-4 { padding-inline: var(--space-4) !important; }
+.px-6 { padding-inline: var(--space-6) !important; }
+.px-8 { padding-inline: var(--space-8) !important; }
+
+.py-2 { padding-block: var(--space-2) !important; }
+.py-3 { padding-block: var(--space-3) !important; }
+.py-4 { padding-block: var(--space-4) !important; }
+.py-6 { padding-block: var(--space-6) !important; }
+.py-8 { padding-block: var(--space-8) !important; }
+
+.pt-2 { padding-top: var(--space-2) !important; }
+.pt-3 { padding-top: var(--space-3) !important; }
+.pt-4 { padding-top: var(--space-4) !important; }
+.pt-6 { padding-top: var(--space-6) !important; }
+
+.pb-2 { padding-bottom: var(--space-2) !important; }
+.pb-3 { padding-bottom: var(--space-3) !important; }
+.pb-4 { padding-bottom: var(--space-4) !important; }
+.pb-6 { padding-bottom: var(--space-6) !important; }
+
+/* ── Margin Utilities ── */
+.mb-0 { margin-bottom: 0 !important; }
+.mb-1 { margin-bottom: var(--space-1) !important; }
+.mb-2 { margin-bottom: var(--space-2) !important; }
+.mb-3 { margin-bottom: var(--space-3) !important; }
+.mb-4 { margin-bottom: var(--space-4) !important; }
+.mb-5 { margin-bottom: var(--space-5) !important; }
+.mb-6 { margin-bottom: var(--space-6) !important; }
+.mb-8 { margin-bottom: var(--space-8) !important; }
+.mb-12 { margin-bottom: var(--space-12) !important; }
+
+.mt-1 { margin-top: var(--space-1) !important; }
+.mt-2 { margin-top: var(--space-2) !important; }
+.mt-3 { margin-top: var(--space-3) !important; }
+.mt-4 { margin-top: var(--space-4) !important; }
+.mt-6 { margin-top: var(--space-6) !important; }
+.mt-8 { margin-top: var(--space-8) !important; }
+.mt-12 { margin-top: var(--space-12) !important; }
+
+.mx-auto { margin-inline: auto !important; }
+.my-4 { margin-block: var(--space-4) !important; }
+
+/* ── Space Between Utilities ── */
+.space-y-1 > * + * { margin-top: var(--space-1) !important; }
+.space-y-2 > * + * { margin-top: var(--space-2) !important; }
+.space-y-3 > * + * { margin-top: var(--space-3) !important; }
+.space-y-4 > * + * { margin-top: var(--space-4) !important; }
+.space-y-6 > * + * { margin-top: var(--space-6) !important; }
+
+/* ── Divider ── */
+.divider {
+  height: 1px;
+  background: var(--color-border);
+  margin-block: var(--space-4);
+}
+
+/* ── Tricolor Strip ── */
+.tricolor-strip {
+  height: 4px;
+  background: linear-gradient(90deg,
+    var(--color-saffron) 0% 33.3%,
+    var(--color-white)  33.3% 66.6%,
+    var(--color-green-india) 66.6% 100%);
+}
+
+.grievance-layout-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: var(--space-8);
+  align-items: start;
+}
+
+/* ── Responsive Grid & Layout Alignments ── */
+@media (max-width: 1024px) {
+  .container { padding-inline: var(--space-5); }
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: 1fr; }
+  .col-span-2, .col-span-3 { grid-column: span 1 !important; }
+  .grievance-layout-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  html { font-size: 15px; }
+  .section { padding-block: var(--space-10); }
+  .section-title { font-size: var(--text-2xl); }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .col-span-2, .col-span-3 { grid-column: span 1 !important; }
+  .container { padding-inline: var(--space-4); }
+}
+
+@media (max-width: 480px) {
+  html { font-size: 14px; }
+}
