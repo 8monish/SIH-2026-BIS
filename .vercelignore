@@ -1,0 +1,17 @@
+# Ignore backend from Vercel static deployment
+backend/
+src/
+venv/
+.venv/
+__pycache__/
+*.py
+*.pyc
+*.pdf
+run.sh
+run.bat
+ARCHITECTURE.md
+tsconfig.json
+tsconfig.tsbuildinfo
+vite.config.ts
+tailwind.config.js
+postcss.config.js

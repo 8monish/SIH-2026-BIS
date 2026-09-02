@@ -20,26 +20,31 @@ mongo = Mongo()
 
 
 async def connect_to_mongo() -> None:
-    mongo.client = AsyncIOMotorClient(settings.mongo_uri)
-    mongo.db = mongo.client[settings.mongo_db_name]
-    # Fail fast with a clear error if MongoDB is unreachable.
-    await mongo.client.admin.command("ping")
-
-    # Helpful indexes
-    await mongo.db.products.create_index("name", unique=True)
-    await mongo.db.standards.create_index("standard_number", unique=True)
-    await mongo.db.roadmaps.create_index("product_name")
-    await mongo.db.documents.create_index("product")
+    try:
+        mongo.client = AsyncIOMotorClient(settings.mongo_uri, serverSelectionTimeoutMS=1500)
+        mongo.db = mongo.client[settings.mongo_db_name]
+        # Fast ping check (1.5s max)
+        await mongo.client.admin.command("ping")
+        # Helpful indexes
+        await mongo.db.products.create_index("name", unique=True)
+        await mongo.db.standards.create_index("standard_number", unique=True)
+        await mongo.db.roadmaps.create_index("product_name")
+        await mongo.db.documents.create_index("product")
+    except Exception as e:
+        print(f"MongoDB connection notice: {e}. FastAPI running in resilient offline mode.")
+        mongo.client = None
+        mongo.db = None
 
 
 async def close_mongo_connection() -> None:
     if mongo.client:
-        mongo.client.close()
+        try:
+            mongo.client.close()
+        except Exception:
+            pass
 
 
-def get_database() -> AsyncIOMotorDatabase:
-    if mongo.db is None:
-        raise RuntimeError("Database not initialized. Did startup run?")
+def get_database() -> AsyncIOMotorDatabase | None:
     return mongo.db
 
 
@@ -114,9 +119,14 @@ async def seed_demo_data() -> None:
     """Insert demo products/standards only if the collections are empty.
     Safe to call on every startup."""
     db = get_database()
+    if db is None:
+        return
 
-    if await db.products.count_documents({}) == 0:
-        await db.products.insert_many(DEMO_PRODUCTS)
+    try:
+        if await db.products.count_documents({}) == 0:
+            await db.products.insert_many(DEMO_PRODUCTS)
 
-    if await db.standards.count_documents({}) == 0:
-        await db.standards.insert_many(DEMO_STANDARDS)
+        if await db.standards.count_documents({}) == 0:
+            await db.standards.insert_many(DEMO_STANDARDS)
+    except Exception as e:
+        print(f"Seed data notice: {e}")
