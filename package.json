@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "python3 -m http.server 8080",
     "serve": "python3 -m http.server 8080",
-    "build": "echo 'Static multi-page web application ready for deployment'",
+    "build": "mkdir -p dist && cp *.html dist/ && cp -r assets dist/",
     "lint": "echo 'No lint errors'",
     "preview": "python3 -m http.server 8080"
   },
