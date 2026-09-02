@@ -40,6 +40,18 @@ const MOCK_GRIEVANCE_TIMELINE = {
   }
 };
 
+// Persistent Grievance Database Cache (localStorage + Backend API Sync)
+if (typeof window !== 'undefined') {
+  const storedGrievances = localStorage.getItem('bis_grievance_records');
+  if (storedGrievances) {
+    try {
+      Object.assign(MOCK_GRIEVANCE_TIMELINE, JSON.parse(storedGrievances));
+    } catch (e) {
+      console.error('Error loading stored grievances:', e);
+    }
+  }
+}
+
 export function initGrievance() {
   // ── 1. Wizard Navigation ──
   let currentStep = 1;
@@ -141,6 +153,22 @@ export function initGrievance() {
           { step: 5, title: 'Final Redressal', date: 'Pending', desc: 'Resolution & consumer communication.' }
         ]
       };
+
+      // Save to localStorage persistent browser database
+      try {
+        localStorage.setItem('bis_grievance_records', JSON.stringify(MOCK_GRIEVANCE_TIMELINE));
+      } catch (e) {
+        console.error('Error saving grievance to browser database:', e);
+      }
+
+      // Sync to FastAPI Mongo Backend API if online
+      fetch('http://localhost:8000/api/grievances', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(MOCK_GRIEVANCE_TIMELINE[newId])
+      }).catch(() => {
+        // Safe offline fallback: Stored in browser database (localStorage)
+      });
 
       // Show Success Modal / Card
       const wizardContainer = document.getElementById('complaint-wizard-card');
