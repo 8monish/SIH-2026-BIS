@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, ExternalLink, HelpCircle, FileText } from 'lucide-react';
+import { Shield, ExternalLink } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (

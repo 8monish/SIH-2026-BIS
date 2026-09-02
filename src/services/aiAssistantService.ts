@@ -15,7 +15,7 @@ export class AIAssistantService {
   /**
    * Search knowledge base and construct grounded RAG response
    */
-  public static async processQuery(query: string, history: ChatMessage[] = []): Promise<RAGResponse> {
+  public static async processQuery(query: string, _history: ChatMessage[] = []): Promise<RAGResponse> {
     const qLower = query.toLowerCase().trim();
 
     // 1. Identify best matching Indian Standard
@@ -71,10 +71,10 @@ export class AIAssistantService {
   }
 
   private static synthesizeKnowledgeResponse(
-    originalQuery: string,
+    _originalQuery: string,
     q: string,
     standard: IndianStandard | null,
-    scheme: any,
+    _scheme: any,
     labs: any[]
   ): RAGResponse {
     const citations: CitedSource[] = [];
@@ -244,7 +244,7 @@ I can guide you on any Indian Standard (IS), mandatory Quality Control Order (QC
     return { answer, citations, suggestedActions };
   }
 
-  private static generateCitations(standard: IndianStandard | null, scheme: any): CitedSource[] {
+  private static generateCitations(standard: IndianStandard | null, _scheme: any): CitedSource[] {
     const citations: CitedSource[] = [];
     if (standard) {
       citations.push({

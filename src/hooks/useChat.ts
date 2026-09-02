@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { ChatMessage, CitedSource, IndianStandard } from '../types/bis';
 import { AIAssistantService } from '../services/aiAssistantService';
 
@@ -34,7 +34,6 @@ export function useChat(onNavigate?: (view: string, payload?: any) => void) {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeCitation, setActiveCitation] = useState<CitedSource | null>(null);
   const [selectedStandard, setSelectedStandard] = useState<IndianStandard | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(async (queryText: string) => {
     if (!queryText.trim() || isLoading) return;

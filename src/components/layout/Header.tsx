@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Moon, Sun, Bell, Sparkles, BookOpen, ExternalLink } from 'lucide-react';
+import { ShieldCheck, Moon, Sun, Sparkles, ExternalLink } from 'lucide-react';
 
 interface HeaderProps {
   isDark: boolean;
