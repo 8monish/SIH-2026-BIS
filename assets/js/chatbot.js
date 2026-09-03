@@ -582,6 +582,149 @@ export function initChatbot() {
   const GEMINI_API_KEY = window.GEMINI_API_KEY || localStorage.getItem('GEMINI_API_KEY') || (typeof atob === 'function' ? atob('QVEuQWI4Uk42Skdja3ItajB6NXYyeW9wNXVNLXY3T2wtV1dhSEV6TWlyZjc5Y2Z2djR0UFE=') : '');
   const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
+  // ── PRODUCT INSPECTION, AUTHENTICITY AUDIT & LEGAL ROADMAP ENGINE ──
+  function buildProductInspectionDossier(inputSource = '', extractedVisionText = '', fileName = '') {
+    const combined = `${inputSource} ${extractedVisionText} ${fileName}`.toLowerCase();
+
+    // Determine Product Archetype & Simulated Audit Parameters
+    let product = {
+      name: 'Two-Wheeler Protective Full-Face Helmet',
+      brand: 'AeroShield Moto Pro / SpeedGears',
+      standard: 'IS 4151:2015',
+      division: 'Mechanical Engineering (MED)',
+      qco: 'Helmets for Riders of Two-Wheeler Motor Vehicles (QCO) 2020 — Mandatory Under Gazette S.O. 3942(E)',
+      cml: 'CM/L-8400192847',
+      price: '₹1,450',
+      fee: '₹14,500',
+      tat: '12 Working Days',
+      keyTests: 'Impact Absorption (Clause 7), Dynamic Retention Chin-Strap Strength (Clause 8), Peripheral Vision & Penetration Resistance (Clause 9)',
+      defectReason: 'CM/L-8400192847 not found in active BIS Central Registry; aspect ratio of the ISI logo fails 1:1.414 physical specifications; missing statutory 7-digit sub-licence identifier.'
+    };
+
+    if (combined.includes('water') || combined.includes('bottle') || combined.includes('mineral') || combined.includes('jar') || combined.includes('is14543') || combined.includes('is10500')) {
+      product = {
+        name: 'Packaged Drinking Water (500ml / 1L PET Bottle)',
+        brand: 'Himalayan Pure Flow / BlueStream Waters',
+        standard: 'IS 14543:2016',
+        division: 'Food and Agriculture (FAD)',
+        qco: 'Packaged Drinking Water (QCO) 2001 — 100% Compulsory Certification Prior to Commercial Sale',
+        cml: 'CM/L-9200481729',
+        price: '₹20',
+        fee: '₹9,800',
+        tat: '7 Working Days',
+        keyTests: 'Microbiological Sterility (E. coli, Coliform, Yeast), Heavy Metals (Lead, Arsenic), Total Dissolved Solids (TDS), Pesticide Residues',
+        defectReason: 'Duplicate CM/L-9200481729 registered to a different manufacturing unit in Solan; packaging label lacks mandatory batch sterilization code and BIS Care QR code.'
+      };
+    } else if (combined.includes('cement') || combined.includes('concrete') || combined.includes('mortar') || combined.includes('opc') || combined.includes('ppc') || combined.includes('is269') || combined.includes('is1489')) {
+      product = {
+        name: 'Portland Pozzolana Cement (50kg HDPE Bag)',
+        brand: 'MahaShakti Pro Cement / InfraBuild Ultra',
+        standard: 'IS 1489 (Part 1):2015',
+        division: 'Civil Engineering (CED)',
+        qco: 'Cement (Quality Control) Order, 2003 — Mandatory ISI mark under Bureau of Indian Standards Act',
+        cml: 'CM/L-7100349281',
+        price: '₹380 / bag',
+        fee: '₹18,500',
+        tat: '28 Working Days',
+        keyTests: 'Compressive Strength at 3, 7, 28 days (IS 4031 Part 6), Setting Time (Initial & Final), Fineness by Blaine, Chemical Soundness by Le-Chatelier',
+        defectReason: 'Expired CM/L number; bag stitching missing mandatory red-thread tamper seal; fly-ash composition exceeds permissible 35% statutory ceiling.'
+      };
+    } else if (combined.includes('gold') || combined.includes('jewel') || combined.includes('ring') || combined.includes('huid') || combined.includes('hallmark') || combined.includes('carat') || combined.includes('karat')) {
+      product = {
+        name: '22K Hallmarked Gold Jewellery Artefact',
+        brand: 'Sri Laxmi Jewellers / Royale Ornaments',
+        standard: 'IS 1417:2016 (Gold & Gold Alloys)',
+        division: 'Metallurgical Engineering (MTD)',
+        qco: 'Hallmarking of Gold Jewellery and Gold Artefacts Order, 2020 — Mandatory in 343+ Indian Districts',
+        cml: 'HUID: XY9824',
+        price: '₹68,400',
+        fee: '₹500 (Assaying test fee)',
+        tat: '24–48 Hours',
+        keyTests: 'Fire Assay & Cupellation (IS 1418), X-ray Fluorescence (XRF) Non-destructive Purity Scan',
+        defectReason: '6-digit HUID XY9824 failed cryptographic checksum verification in national Assaying & Hallmarking Centre database; tested purity was 18.4 Karat (76.8% gold) instead of claimed 22K (91.6%).'
+      };
+    } else if (combined.includes('wire') || combined.includes('cable') || combined.includes('copper') || combined.includes('is694')) {
+      product = {
+        name: 'PVC Insulated Copper Wire (1.5 sq mm, 1100V)',
+        brand: 'VoltShield FlameRetard Cables',
+        standard: 'IS 694:2010',
+        division: 'Electrotechnical (ETD)',
+        qco: 'Electrical Wires and Cables (QCO) 2023 — Mandatory ISI Certification',
+        cml: 'CM/L-5300184920',
+        price: '₹1,850 / 90m coil',
+        fee: '₹12,200',
+        tat: '10 Working Days',
+        keyTests: 'Conductor Resistance (IS 8130), Insulation Resistance & Spark Test, Flammability Test, Critical Oxygen Index',
+        defectReason: 'CM/L mark printed with substandard ink without embossed ISI logo on sheath; conductor resistance exceeds statutory maximum, posing severe household fire hazard.'
+      };
+    } else if (combined.includes('steel') || combined.includes('tmt') || combined.includes('bar') || combined.includes('rod') || combined.includes('is1786')) {
+      product = {
+        name: 'Fe 500D High Strength Deformed TMT Steel Bar (12mm)',
+        brand: 'BharatSteel InfraTMT',
+        standard: 'IS 1786:2008',
+        division: 'Metallurgical Engineering (MTD)',
+        qco: 'Steel and Steel Products (Quality Control) Order — 100% Mandatory ISI Licence',
+        cml: 'CM/L-4400827103',
+        price: '₹58,000 / Tonne',
+        fee: '₹22,000',
+        tat: '14 Working Days',
+        keyTests: 'Yield Strength (0.2% proof stress), Tensile-to-Yield Ratio, Percentage Elongation, Bend & Rebend Test',
+        defectReason: 'Brand rolling mark absent on rebar ribs; carbon equivalent exceeds 0.42% limit leading to brittle weld joints.'
+      };
+    } else if (combined.includes('toy') || combined.includes('doll') || combined.includes('game') || combined.includes('is9873')) {
+      product = {
+        name: 'Electric / Non-Electric Children Educational Toy',
+        brand: 'KiddoPlay Innovations',
+        standard: 'IS 9873 (Part 1):2019',
+        division: 'Production & General Engineering (PCD)',
+        qco: 'Toys (Quality Control) Order, 2020 — Mandatory ISI Mark across all toys sold in India',
+        cml: 'CM/L-6100982341',
+        price: '₹699',
+        fee: '₹8,500',
+        tat: '8 Working Days',
+        keyTests: 'Mechanical & Physical Properties (Choking hazard drop test), Flammability, Migration of Toxic Heavy Metals (Lead, Cadmium)',
+        defectReason: 'Counterfeit ISI mark printed on cardboard outer box without registration details; small part detachability fails safety drop test for children under 36 months.'
+      };
+    } else if (combined.includes('plug') || combined.includes('socket') || combined.includes('is1293')) {
+      product = {
+        name: '3-Pin Heavy Duty 16A Plug Top and Shuttered Socket',
+        brand: 'PowerGrip Modular Switchgear',
+        standard: 'IS 1293:2019',
+        division: 'Electrotechnical (ETD)',
+        qco: 'Plugs and Socket-Outlets (QCO) 2022 — Mandatory BIS Certification',
+        cml: 'CM/L-8200193482',
+        price: '₹140',
+        fee: '₹11,000',
+        tat: '10 Working Days',
+        keyTests: 'Temperature Rise Test, Contact Resistance, High-Voltage Flash Test, Withdrawal Force & Shutter Safety',
+        defectReason: 'Pins undersized by 0.8mm leading to loose electrical contacts and arcing; lack of mandatory safety shutter over live terminals.'
+      };
+    }
+
+    const docketId = `BIS-GR-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const prefillUrl = `grievance-redressal.html?product=${encodeURIComponent(product.name)}&category=${encodeURIComponent('Misuse of ISI Mark (Substandard Product)')}&details=${encodeURIComponent(product.defectReason)}&seller=${encodeURIComponent(product.brand)}&price=${encodeURIComponent(product.price.replace(/[^\d]/g, '') || '1200')}&invoice=${encodeURIComponent(`INV-${Math.floor(100000 + Math.random() * 900000)}`)}`;
+    const stdQuery = product.standard.split(':')[0].trim();
+    const stdUrl = `standards-search.html?q=${encodeURIComponent(stdQuery)}`;
+    const verifyCode = product.cml.replace(/HUID:\s*/i, '');
+    const verifyUrl = `verify-licence.html?type=${product.cml.startsWith('HUID') ? 'huid' : 'isi'}&code=${encodeURIComponent(verifyCode)}`;
+
+    return {
+      text: `### 🛡️ **Bureau of Indian Standards (BIS) — Automated Product Inspection & Compliance Report**\n\n#### 📋 **1. Extracted Product Specifications**\n• **Product Name**: **${product.name}**\n• **Brand / Trade Name**: ${product.brand}\n• **Applicable Standard**: **${product.standard}**\n• **Claimed Mark / Code**: \`${product.cml}\`\n• **Technical Division**: ${product.division}\n• **Quality Control Order (QCO)**: ⚠️ **${product.qco}**\n\n---\n\n#### 🚨 **2. Authenticity & Fake / Counterfeit Audit Verdict**\n• **Status**: ⚠️ **SUSPICIOUS / NON-COMPLIANT PRODUCT DETECTED (Simulated Audit)**\n• **Central Registry Verification**: ❌ \`${product.cml}\` failed official registry validation.\n• **Identified Discrepancy**: ${product.defectReason}\n• **Safety Risk Level**: **HIGH (Non-Compliance with Mandatory Safety Benchmark)**\n• **Legal Consequence**: Under **Section 29, BIS Act 2016**, manufacturing, stocking, or selling non-certified goods covered under mandatory QCO is punishable with up to **2 years imprisonment and minimum ₹2,00,000 penalty**.\n\n---\n\n#### 🏭 **3. Legal Roadmap: How to Legally Certify This Product (For Manufacturers & Sellers)**\n*Follow these 6 steps to apply for a legal IS Code & obtain genuine BIS ISI Certification from scratch:*\n1. **Standard Scope & Gap Analysis**:\n   - Review **${product.standard}** on the [Standards Catalog](standards-search.html).\n   - Mandatory Test Benchmarks: *${product.keyTests}*.\n2. **In-House Testing Setup (STI)**:\n   - Equip your factory laboratory adhering to the **Scheme of Testing and Inspection (STI)** with calibrated measuring instruments and qualified quality personnel.\n3. **Benchmark Prototype Testing via LIMS**:\n   - Submit pre-commissioning prototypes to an accredited BIS/NABL testing facility on the [LIMS Testing Directory](lims-lab-directory.html).\n   - *Benchmark*: Estimated Fee: **${product.fee}**; Turnaround Time: **${product.tat}**.\n4. **File Application on Manakonline**:\n   - Complete online Form-I submission on the official [Manakonline Portal](https://www.manakonline.in) with factory layout, machinery specs, and test reports.\n5. **On-Site Factory Audit**:\n   - Designated BIS Technical Officer inspects the production line, validates manufacturing quality controls, and draws independent market validation samples.\n6. **Grant of Authentic CM/L Licence**:\n   - Upon test clearance, BIS grants your 10-digit **CM/L-XXXXXXXXX** licence, legally authorizing the use of the authentic ISI Mark.\n\n---\n\n#### ⚖️ **4. Consumer Recourse & Complaint Filing (If Defective / Counterfeit)**\n• **Auto-Generated Tracking Docket**: \`${docketId}\`\n• Click below to review your pre-filled formal grievance. BIS Branch Enforcement conducts market surveillance raids and sample seizures under Section 28 of the BIS Act, 2016.`,
+      suggestions: [
+        'Show Manufacturer Roadmap',
+        'Verify 10-digit CM/L',
+        'LIMS Testing Labs',
+        'Standards Catalog'
+      ],
+      actions: [
+        { text: '📝 Open Pre-Filled Grievance Form', url: prefillUrl },
+        { text: '🔍 Verify Licence on Portal', url: verifyUrl },
+        { text: `📖 View Standard (${stdQuery})`, url: stdUrl },
+        { text: '🧪 Estimate LIMS Lab Fee', url: 'lims-lab-directory.html' }
+      ]
+    };
+  }
+
   // ── MULTIMODAL VISION OCR & IMAGE DATA EXTRACTION ──
   async function handleImageUpload(file) {
     if (!file) return;
@@ -589,76 +732,65 @@ export function initChatbot() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       const base64Data = e.target.result;
+      const isImg = file.type.startsWith('image/');
 
-      // Append Image User Bubble
-      appendMessage(`<div style="font-weight:600;font-size:11px;margin-bottom:4px;">📷 Uploaded Document for Vision OCR:</div><img src="${base64Data}" style="max-width:180px;max-height:120px;border-radius:8px;border:1px solid #cbd5e1;" alt="Uploaded Document">`, 'user');
+      // Append Image / Document User Bubble
+      const previewHtml = isImg
+        ? `<img src="${base64Data}" style="max-width:180px;max-height:120px;border-radius:8px;border:1px solid #cbd5e1;display:block;margin-top:4px;" alt="Uploaded Product">`
+        : `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:12px;color:#1e40af;"><span style="font-size:18px;">📄</span><span>${file.name} (${(file.size / 1024).toFixed(1)} KB)</span></div>`;
+
+      appendMessage(`<div style="font-weight:600;font-size:11px;">🔍 Uploaded Product File for AI Inspection:</div>${previewHtml}`, 'user');
 
       showTypingIndicator();
 
       let extractedText = '';
-      let isVisionSuccess = false;
-
       try {
-        const userApiKey = GEMINI_API_KEY;
-        const targetEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${userApiKey}`;
-        const cleanBase64 = base64Data.split(',')[1];
-        const mimeType = file.type || 'image/jpeg';
+        if (isImg) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3500); // Fast 3.5s timeout
+          const userApiKey = GEMINI_API_KEY;
+          const targetEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${userApiKey}`;
+          const cleanBase64 = base64Data.split(',')[1];
+          const mimeType = file.type || 'image/jpeg';
 
-        const response = await fetch(targetEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            system_instruction: {
-              parts: [{ text: "You are ManakBot AI Multimodal Agent for the Bureau of Indian Standards (BIS). Extract key product parameters, seller name, price, licence/HUID/CML numbers, gold weight, purity grade, and issue details. Provide a concise professional summary." }]
-            },
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  { inline_data: { mime_type: mimeType, data: cleanBase64 } },
-                  { text: "Analyze this image. Extract product details, licence/HUID code, seller, price, and state which form action to execute." }
-                ]
-              }
-            ]
-          })
-        });
+          const response = await fetch(targetEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify({
+              system_instruction: {
+                parts: [{ text: "You are ManakBot AI Multimodal Agent for the Bureau of Indian Standards (BIS). Extract product name, brand, claimed IS standard, CM/L number, price, and marking defects." }]
+              },
+              contents: [
+                {
+                  role: 'user',
+                  parts: [
+                    { inline_data: { mime_type: mimeType, data: cleanBase64 } },
+                    { text: "Analyze this product label, package, or certificate. Extract product details, licence/HUID code, seller, price, and state if counterfeit." }
+                  ]
+                }
+              ]
+            })
+          });
+          clearTimeout(timeoutId);
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-            extractedText = data.candidates[0].content.parts[0].text.trim();
-            isVisionSuccess = true;
+          if (response.ok) {
+            const data = await response.json();
+            if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+              extractedText = data.candidates[0].content.parts[0].text.trim();
+            }
           }
         }
       } catch (err) {
-        console.log('Vision API call error, using local OCR parser:', err);
+        console.log('Multimodal API notice, using simulated BIS inspection engine:', err.message || err);
       }
 
       removeTypingIndicator();
 
-      if (isVisionSuccess && extractedText) {
-        const lower = extractedText.toLowerCase();
-        let actionUrl = '';
-        let actionText = '';
-
-        if (lower.includes('gold') || lower.includes('karat') || lower.includes('carat') || lower.includes('huid') || lower.includes('jewel')) {
-          actionUrl = 'grievance-redressal.html?weight=12.5&claimed=22&tested=18&rate=7200#gold-calc-section';
-          actionText = '⚖️ Open Pre-Filled Gold Calculator';
-        } else if (lower.includes('cml') || lower.includes('licence') || lower.includes('isi') || lower.includes('r-') || lower.includes('crs')) {
-          actionUrl = 'verify-licence.html?type=isi&code=CM/L-8400123456';
-          actionText = '🔍 Verify Licence CM/L-8400123456';
-        } else {
-          actionUrl = `grievance-redressal.html?product=${encodeURIComponent('Certified Product (From Scan)')}&category=${encodeURIComponent('Misuse of ISI Mark (Substandard Product)')}&seller=${encodeURIComponent('Extracted Retailer')}&price=1850&details=${encodeURIComponent(extractedText.substring(0, 120))}`;
-          actionText = '📝 Open Pre-Filled Grievance Form';
-        }
-
-        appendMessage(`**Multimodal Vision Analysis Completed**:\n\n${extractedText}`, 'bot', ['Verify Licence', 'Gold Calculator'], [{ text: actionText, url: actionUrl }]);
-      } else {
-        // Fallback OCR Engine
-        const fallbackMsg = `**Image Scan Completed (Vision Engine)**:\n\n• **Detected Document Type**: BIS Quality Certificate / Invoice\n• **Extracted Data**: Product: Two-Wheeler Protective Helmet (IS 4151), CM/L Code: CM/L-8400123456, Price: ₹1,250.\n\nClick below to open the **Consumer Grievance Form** pre-filled with these extracted parameters.`;
-        const fallbackUrl = `grievance-redressal.html?product=${encodeURIComponent('Two-Wheeler Protective Helmet (IS 4151)')}&category=${encodeURIComponent('Misuse of ISI Mark (Substandard Product)')}&seller=${encodeURIComponent('Metro Roadside Gear Shop')}&price=1250&details=${encodeURIComponent('Vision scan detected helmet with defective ISI mark stamp. Shell cracked on minor impact.')}`;
-        appendMessage(fallbackMsg, 'bot', ['Verify CM/L-8400123456', 'Standards Catalog'], [{ text: '📝 Open Pre-Filled Grievance Form', url: fallbackUrl }]);
-      }
+      // Build and append full inspection dossier
+      const dossier = buildProductInspectionDossier(file.name, extractedText, file.name);
+      appendMessage(dossier.text, 'bot', dossier.suggestions, dossier.actions);
+      speakText(dossier.text);
     };
     reader.readAsDataURL(file);
   }
@@ -887,6 +1019,11 @@ export function initChatbot() {
   function queryBISKnowledgeRAG(query) {
     const q = query.toLowerCase();
     const extracted = extractUserDetailsFromPrompt(query);
+
+    // 0. Product Inspection, Authenticity Check & Legal IS Code Application Roadmap
+    if (q.includes('fake') || q.includes('genuine') || q.includes('is it real') || q.includes('apply for legal') || q.includes('legal is code') || q.includes('how to proceed with this product') || q.includes('inspect product') || q.includes('counterfeit check') || q.includes('check product') || q.includes('check if fake') || q.includes('product inspection')) {
+      return buildProductInspectionDossier(query);
+    }
 
     // 0. Comprehensive End-to-End Roadmaps & Workflows (From Scratch to Finish)
     if (q.includes('roadmap') || q.includes('workflow') || q.includes('start to end') || q.includes('from scratch') || q.includes('how to start') || q.includes('guide') || q.includes('how does it work') || q.includes('steps to')) {

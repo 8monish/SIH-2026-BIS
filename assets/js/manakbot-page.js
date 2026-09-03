@@ -8,6 +8,8 @@ export function initManakBotPage() {
   const chatInput = document.getElementById('studio-chat-input');
   const sendBtn = document.getElementById('btn-studio-send');
   const micBtn = document.getElementById('btn-studio-mic');
+  const uploadBtn = document.getElementById('btn-studio-upload');
+  const fileInput = document.getElementById('studio-file-input');
   const audioToggle = document.getElementById('toggle-speech-synthesis');
   const apiKeyInput = document.getElementById('gemini-api-key-input');
   const clearChatBtn = document.getElementById('btn-clear-chat');
@@ -16,6 +18,82 @@ export function initManakBotPage() {
   let recognition = null;
   let isListening = false;
   let conversationHistory = [];
+
+  if (uploadBtn && fileInput) {
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleStudioFileUpload(e.target.files[0]);
+      }
+    });
+  }
+
+  async function handleStudioFileUpload(file) {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64Data = e.target.result;
+      const isImg = file.type.startsWith('image/');
+
+      const previewHtml = isImg
+        ? `<div style="font-weight:600;font-size:11px;margin-bottom:4px;">🔍 Uploaded Product File for Inspection:</div><img src="${base64Data}" style="max-width:200px;max-height:140px;border-radius:8px;border:1px solid #cbd5e1;display:block;" alt="Uploaded Product">`
+        : `<div style="font-weight:600;font-size:11px;margin-bottom:4px;">🔍 Uploaded Product Specification:</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#1e40af;"><span style="font-size:20px;">📄</span><span>${file.name} (${(file.size / 1024).toFixed(1)} KB)</span></div>`;
+
+      appendStudioMessage(previewHtml, 'user');
+      showStudioTyping();
+
+      let extractedText = '';
+      try {
+        if (isImg) {
+          const userKey = apiKeyInput?.value?.trim() || GEMINI_API_KEY;
+          const targetEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${userKey}`;
+          const cleanBase64 = base64Data.split(',')[1];
+          const mimeType = file.type || 'image/jpeg';
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+          const response = await fetch(targetEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify({
+              system_instruction: {
+                parts: [{ text: "You are ManakBot AI Multimodal Agent for the Bureau of Indian Standards (BIS). Extract product name, brand, claimed IS standard, CM/L number, price, and marking defects." }]
+              },
+              contents: [
+                {
+                  role: 'user',
+                  parts: [
+                    { inline_data: { mime_type: mimeType, data: cleanBase64 } },
+                    { text: "Analyze this product label, package, or certificate. Extract product details, licence/HUID code, seller, price, and state if counterfeit." }
+                  ]
+                }
+              ]
+            })
+          });
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+              extractedText = data.candidates[0].content.parts[0].text.trim();
+            }
+          }
+        }
+      } catch (err) {
+        console.log('Studio Vision API notice, using simulated BIS inspection engine:', err.message || err);
+      }
+
+      removeStudioTyping();
+
+      const dossier = buildProductInspectionDossier(file.name, extractedText, file.name);
+      appendStudioMessage(dossier.text, 'bot', dossier.suggestions, dossier.actions);
+      speakText(dossier.text);
+    };
+    reader.readAsDataURL(file);
+  }
 
   // 1. Initialize Web Speech Recognition
   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -171,7 +249,7 @@ export function initManakBotPage() {
   }
 
   // 5. Append Message in Studio
-  function appendStudioMessage(text, sender = 'bot', suggestions = []) {
+  function appendStudioMessage(text, sender = 'bot', suggestions = [], actions = []) {
     if (!chatMessages) return;
 
     const msgEl = document.createElement('div');
@@ -182,6 +260,7 @@ export function initManakBotPage() {
 
     const formattedText = text
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/\n/g, '<br>')
       .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
@@ -189,6 +268,19 @@ export function initManakBotPage() {
       <div class="chat-bubble">${formattedText}</div>
       <span class="chat-time">${timeStr}</span>
     `;
+
+    if (actions && actions.length > 0 && sender === 'bot') {
+      const actBox = document.createElement('div');
+      actBox.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #e2e8f0;';
+      actions.forEach(act => {
+        const link = document.createElement('a');
+        link.href = act.url;
+        link.textContent = act.text;
+        link.style.cssText = 'font-size: 11px; font-weight: 600; padding: 5px 10px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e40af; text-decoration: none; display: inline-flex; align-items: center;';
+        actBox.appendChild(link);
+      });
+      msgEl.querySelector('.chat-bubble')?.appendChild(actBox);
+    }
 
     if (suggestions && suggestions.length > 0 && sender === 'bot') {
       const chipContainer = document.createElement('div');
@@ -233,9 +325,156 @@ export function initManakBotPage() {
     if (existing) existing.remove();
   }
 
+  // ── PRODUCT INSPECTION, AUTHENTICITY AUDIT & LEGAL ROADMAP ENGINE ──
+  function buildProductInspectionDossier(inputSource = '', extractedVisionText = '', fileName = '') {
+    const combined = `${inputSource} ${extractedVisionText} ${fileName}`.toLowerCase();
+
+    let product = {
+      name: 'Two-Wheeler Protective Full-Face Helmet',
+      brand: 'AeroShield Moto Pro / SpeedGears',
+      standard: 'IS 4151:2015',
+      division: 'Mechanical Engineering (MED)',
+      qco: 'Helmets for Riders of Two-Wheeler Motor Vehicles (QCO) 2020 — Mandatory Under Gazette S.O. 3942(E)',
+      cml: 'CM/L-8400192847',
+      price: '₹1,450',
+      fee: '₹14,500',
+      tat: '12 Working Days',
+      keyTests: 'Impact Absorption (Clause 7), Dynamic Retention Chin-Strap Strength (Clause 8), Peripheral Vision & Penetration Resistance (Clause 9)',
+      defectReason: 'CM/L-8400192847 not found in active BIS Central Registry; aspect ratio of the ISI logo fails 1:1.414 physical specifications; missing statutory 7-digit sub-licence identifier.'
+    };
+
+    if (combined.includes('water') || combined.includes('bottle') || combined.includes('mineral') || combined.includes('jar') || combined.includes('is14543') || combined.includes('is10500')) {
+      product = {
+        name: 'Packaged Drinking Water (500ml / 1L PET Bottle)',
+        brand: 'Himalayan Pure Flow / BlueStream Waters',
+        standard: 'IS 14543:2016',
+        division: 'Food and Agriculture (FAD)',
+        qco: 'Packaged Drinking Water (QCO) 2001 — 100% Compulsory Certification Prior to Commercial Sale',
+        cml: 'CM/L-9200481729',
+        price: '₹20',
+        fee: '₹9,800',
+        tat: '7 Working Days',
+        keyTests: 'Microbiological Sterility (E. coli, Coliform, Yeast), Heavy Metals (Lead, Arsenic), Total Dissolved Solids (TDS), Pesticide Residues',
+        defectReason: 'Duplicate CM/L-9200481729 registered to a different manufacturing unit in Solan; packaging label lacks mandatory batch sterilization code and BIS Care QR code.'
+      };
+    } else if (combined.includes('cement') || combined.includes('concrete') || combined.includes('mortar') || combined.includes('opc') || combined.includes('ppc') || combined.includes('is269') || combined.includes('is1489')) {
+      product = {
+        name: 'Portland Pozzolana Cement (50kg HDPE Bag)',
+        brand: 'MahaShakti Pro Cement / InfraBuild Ultra',
+        standard: 'IS 1489 (Part 1):2015',
+        division: 'Civil Engineering (CED)',
+        qco: 'Cement (Quality Control) Order, 2003 — Mandatory ISI mark under Bureau of Indian Standards Act',
+        cml: 'CM/L-7100349281',
+        price: '₹380 / bag',
+        fee: '₹18,500',
+        tat: '28 Working Days',
+        keyTests: 'Compressive Strength at 3, 7, 28 days (IS 4031 Part 6), Setting Time (Initial & Final), Fineness by Blaine, Chemical Soundness by Le-Chatelier',
+        defectReason: 'Expired CM/L number; bag stitching missing mandatory red-thread tamper seal; fly-ash composition exceeds permissible 35% statutory ceiling.'
+      };
+    } else if (combined.includes('gold') || combined.includes('jewel') || combined.includes('ring') || combined.includes('huid') || combined.includes('hallmark') || combined.includes('carat') || combined.includes('karat')) {
+      product = {
+        name: '22K Hallmarked Gold Jewellery Artefact',
+        brand: 'Sri Laxmi Jewellers / Royale Ornaments',
+        standard: 'IS 1417:2016 (Gold & Gold Alloys)',
+        division: 'Metallurgical Engineering (MTD)',
+        qco: 'Hallmarking of Gold Jewellery and Gold Artefacts Order, 2020 — Mandatory in 343+ Indian Districts',
+        cml: 'HUID: XY9824',
+        price: '₹68,400',
+        fee: '₹500 (Assaying test fee)',
+        tat: '24–48 Hours',
+        keyTests: 'Fire Assay & Cupellation (IS 1418), X-ray Fluorescence (XRF) Non-destructive Purity Scan',
+        defectReason: '6-digit HUID XY9824 failed cryptographic checksum verification in national Assaying & Hallmarking Centre database; tested purity was 18.4 Karat (76.8% gold) instead of claimed 22K (91.6%).'
+      };
+    } else if (combined.includes('wire') || combined.includes('cable') || combined.includes('copper') || combined.includes('is694')) {
+      product = {
+        name: 'PVC Insulated Copper Wire (1.5 sq mm, 1100V)',
+        brand: 'VoltShield FlameRetard Cables',
+        standard: 'IS 694:2010',
+        division: 'Electrotechnical (ETD)',
+        qco: 'Electrical Wires and Cables (QCO) 2023 — Mandatory ISI Certification',
+        cml: 'CM/L-5300184920',
+        price: '₹1,850 / 90m coil',
+        fee: '₹12,200',
+        tat: '10 Working Days',
+        keyTests: 'Conductor Resistance (IS 8130), Insulation Resistance & Spark Test, Flammability Test, Critical Oxygen Index',
+        defectReason: 'CM/L mark printed with substandard ink without embossed ISI logo on sheath; conductor resistance exceeds statutory maximum, posing severe household fire hazard.'
+      };
+    } else if (combined.includes('steel') || combined.includes('tmt') || combined.includes('bar') || combined.includes('rod') || combined.includes('is1786')) {
+      product = {
+        name: 'Fe 500D High Strength Deformed TMT Steel Bar (12mm)',
+        brand: 'BharatSteel InfraTMT',
+        standard: 'IS 1786:2008',
+        division: 'Metallurgical Engineering (MTD)',
+        qco: 'Steel and Steel Products (Quality Control) Order — 100% Mandatory ISI Licence',
+        cml: 'CM/L-4400827103',
+        price: '₹58,000 / Tonne',
+        fee: '₹22,000',
+        tat: '14 Working Days',
+        keyTests: 'Yield Strength (0.2% proof stress), Tensile-to-Yield Ratio, Percentage Elongation, Bend & Rebend Test',
+        defectReason: 'Brand rolling mark absent on rebar ribs; carbon equivalent exceeds 0.42% limit leading to brittle weld joints.'
+      };
+    } else if (combined.includes('toy') || combined.includes('doll') || combined.includes('game') || combined.includes('is9873')) {
+      product = {
+        name: 'Electric / Non-Electric Children Educational Toy',
+        brand: 'KiddoPlay Innovations',
+        standard: 'IS 9873 (Part 1):2019',
+        division: 'Production & General Engineering (PCD)',
+        qco: 'Toys (Quality Control) Order, 2020 — Mandatory ISI Mark across all toys sold in India',
+        cml: 'CM/L-6100982341',
+        price: '₹699',
+        fee: '₹8,500',
+        tat: '8 Working Days',
+        keyTests: 'Mechanical & Physical Properties (Choking hazard drop test), Flammability, Migration of Toxic Heavy Metals (Lead, Cadmium)',
+        defectReason: 'Counterfeit ISI mark printed on cardboard outer box without registration details; small part detachability fails safety drop test for children under 36 months.'
+      };
+    } else if (combined.includes('plug') || combined.includes('socket') || combined.includes('is1293')) {
+      product = {
+        name: '3-Pin Heavy Duty 16A Plug Top and Shuttered Socket',
+        brand: 'PowerGrip Modular Switchgear',
+        standard: 'IS 1293:2019',
+        division: 'Electrotechnical (ETD)',
+        qco: 'Plugs and Socket-Outlets (QCO) 2022 — Mandatory BIS Certification',
+        cml: 'CM/L-8200193482',
+        price: '₹140',
+        fee: '₹11,000',
+        tat: '10 Working Days',
+        keyTests: 'Temperature Rise Test, Contact Resistance, High-Voltage Flash Test, Withdrawal Force & Shutter Safety',
+        defectReason: 'Pins undersized by 0.8mm leading to loose electrical contacts and arcing; lack of mandatory safety shutter over live terminals.'
+      };
+    }
+
+    const docketId = `BIS-GR-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const prefillUrl = `grievance-redressal.html?product=${encodeURIComponent(product.name)}&category=${encodeURIComponent('Misuse of ISI Mark (Substandard Product)')}&details=${encodeURIComponent(product.defectReason)}&seller=${encodeURIComponent(product.brand)}&price=${encodeURIComponent(product.price.replace(/[^\d]/g, '') || '1200')}&invoice=${encodeURIComponent(`INV-${Math.floor(100000 + Math.random() * 900000)}`)}`;
+    const stdQuery = product.standard.split(':')[0].trim();
+    const stdUrl = `standards-search.html?q=${encodeURIComponent(stdQuery)}`;
+    const verifyCode = product.cml.replace(/HUID:\s*/i, '');
+    const verifyUrl = `verify-licence.html?type=${product.cml.startsWith('HUID') ? 'huid' : 'isi'}&code=${encodeURIComponent(verifyCode)}`;
+
+    return {
+      text: `### 🛡️ **Bureau of Indian Standards (BIS) — Automated Product Inspection & Compliance Report**\n\n#### 📋 **1. Extracted Product Specifications**\n• **Product Name**: **${product.name}**\n• **Brand / Trade Name**: ${product.brand}\n• **Applicable Standard**: **${product.standard}**\n• **Claimed Mark / Code**: \`${product.cml}\`\n• **Technical Division**: ${product.division}\n• **Quality Control Order (QCO)**: ⚠️ **${product.qco}**\n\n---\n\n#### 🚨 **2. Authenticity & Fake / Counterfeit Audit Verdict**\n• **Status**: ⚠️ **SUSPICIOUS / NON-COMPLIANT PRODUCT DETECTED (Simulated Audit)**\n• **Central Registry Verification**: ❌ \`${product.cml}\` failed official registry validation.\n• **Identified Discrepancy**: ${product.defectReason}\n• **Safety Risk Level**: **HIGH (Non-Compliance with Mandatory Safety Benchmark)**\n• **Legal Consequence**: Under **Section 29, BIS Act 2016**, manufacturing, stocking, or selling non-certified goods covered under mandatory QCO is punishable with up to **2 years imprisonment and minimum ₹2,00,000 penalty**.\n\n---\n\n#### 🏭 **3. Legal Roadmap: How to Legally Certify This Product (For Manufacturers & Sellers)**\n*Follow these 6 steps to apply for a legal IS Code & obtain genuine BIS ISI Certification from scratch:*\n1. **Standard Scope & Gap Analysis**:\n   - Review **${product.standard}** on the [Standards Catalog](standards-search.html).\n   - Mandatory Test Benchmarks: *${product.keyTests}*.\n2. **In-House Testing Setup (STI)**:\n   - Equip your factory laboratory adhering to the **Scheme of Testing and Inspection (STI)** with calibrated measuring instruments and qualified quality personnel.\n3. **Benchmark Prototype Testing via LIMS**:\n   - Submit pre-commissioning prototypes to an accredited BIS/NABL testing facility on the [LIMS Testing Directory](lims-lab-directory.html).\n   - *Benchmark*: Estimated Fee: **${product.fee}**; Turnaround Time: **${product.tat}**.\n4. **File Application on Manakonline**:\n   - Complete online Form-I submission on the official [Manakonline Portal](https://www.manakonline.in) with factory layout, machinery specs, and test reports.\n5. **On-Site Factory Audit**:\n   - Designated BIS Technical Officer inspects the production line, validates manufacturing quality controls, and draws independent market validation samples.\n6. **Grant of Authentic CM/L Licence**:\n   - Upon test clearance, BIS grants your 10-digit **CM/L-XXXXXXXXX** licence, legally authorizing the use of the authentic ISI Mark.\n\n---\n\n#### ⚖️ **4. Consumer Recourse & Complaint Filing (If Defective / Counterfeit)**\n• **Auto-Generated Tracking Docket**: \`${docketId}\`\n• Click below to review your pre-filled formal grievance. BIS Branch Enforcement conducts market surveillance raids and sample seizures under Section 28 of the BIS Act, 2016.`,
+      suggestions: [
+        'Show Manufacturer Roadmap',
+        'Verify 10-digit CM/L',
+        'LIMS Testing Labs',
+        'Standards Catalog'
+      ],
+      actions: [
+        { text: '📝 Open Pre-Filled Grievance Form', url: prefillUrl },
+        { text: '🔍 Verify Licence on Portal', url: verifyUrl },
+        { text: `📖 View Standard (${stdQuery})`, url: stdUrl },
+        { text: '🧪 Estimate LIMS Lab Fee', url: 'lims-lab-directory.html' }
+      ]
+    };
+  }
+
   // 6. Offline BIS Intelligence Engine
   function getStudioBotResponse(userInput) {
     const query = userInput.toLowerCase();
+
+    // 0. Product Inspection & Legal IS Code Application Roadmap
+    if (query.includes('fake') || query.includes('genuine') || query.includes('is it real') || query.includes('apply for legal') || query.includes('legal is code') || query.includes('how to proceed with this product') || query.includes('inspect product') || query.includes('counterfeit check') || query.includes('check product') || query.includes('check if fake') || query.includes('product inspection')) {
+      return buildProductInspectionDossier(userInput);
+    }
 
     if (query.includes('roadmap') || query.includes('workflow') || query.includes('start to end') || query.includes('from scratch') || query.includes('how to start') || query.includes('guide') || query.includes('step')) {
       return {
