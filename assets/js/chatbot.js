@@ -13,15 +13,14 @@ import { performClientOCR, parseExtractedText, generateAccurateInspectionReport 
 import { showAutofillToast } from './form-autofill.js';
 import { SUPPORTED_LANGUAGES, getCurrentLanguage, setLanguage, t, getVoiceLanguage, getLocalizedRAGResponse } from './i18n.js';
 import { resolveExactBISQuery } from './bis-knowledge-engine.js';
-import { 
-  getActiveGeminiApiKey, 
-  saveActiveGeminiApiKey, 
-  getActiveGeminiModel, 
-  saveActiveGeminiModel, 
-  AVAILABLE_GEMINI_MODELS, 
-  testGeminiConnection, 
-  callLiveGeminiAPI,
-  buildBISSystemPrompt
+import {
+  getActiveGeminiApiKey,
+  saveActiveGeminiApiKey,
+  getActiveGeminiModel,
+  saveActiveGeminiModel,
+  AVAILABLE_GEMINI_MODELS,
+  testGeminiConnection,
+  callLiveGeminiAPI
 } from './gemini-bridge.js';
 
 const BIS_LOGO_PNG = `<img src="assets/images/bis-logo.png" alt="BIS Logo" style="height: 26px; width: auto; max-width: 100%; object-fit: contain; vertical-align: middle; background: #ffffff; padding: 2px 4px; border-radius: 4px;">`;
@@ -1037,7 +1036,7 @@ export function initChatbot() {
     return generateAccurateInspectionReport(parsed, fileMeta, fileMeta.source || 'Optical Character Recognition (OCR)');
   }
 
-  // ── FILE UPLOAD — GEMINI MULTIMODAL (NO OCR) ──
+  // ── REAL MULTIMODAL VISION OCR & FILE DATA EXTRACTION ──
   async function handleImageUpload(file, userNote = '', cachedDataUrl = null) {
     if (!file) return;
 
@@ -1046,13 +1045,18 @@ export function initChatbot() {
     const processData = async (base64Data) => {
       const currentLang = getCurrentLanguage();
 
-      // User bubble: image preview or document chip
+      // Append Image / Document User Bubble in official BIS blue styling
       const previewHtml = isImg
-        ? `<img src="${base64Data}" style="max-width:220px;max-height:160px;border-radius:8px;border:1.5px solid var(--color-primary-100, #d0def2);display:block;margin-top:6px;box-shadow:0 2px 6px rgba(0,48,130,0.12);" alt="Uploaded file">`
-        : `<div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--color-primary, #003082);padding:8px 12px;background:var(--color-primary-50, #e8eef8);border-radius:8px;border:1px solid var(--color-primary-100, #d0def2);"><span style="font-size:22px;">📄</span><span><strong>${file.name}</strong> · ${(file.size / 1024).toFixed(1)} KB</span></div>`;
+        ? `<img src="${base64Data}" style="max-width:220px;max-height:160px;border-radius:8px;border:1.5px solid var(--color-primary-100, #d0def2);display:block;margin-top:6px;box-shadow:0 2px 6px rgba(0,48,130,0.12);" alt="Uploaded Document">`
+        : `<div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--color-primary, #003082);padding:8px 12px;background:var(--color-primary-50, #e8eef8);border-radius:8px;border:1px solid var(--color-primary-100, #d0def2);"><span style="font-size:22px;">📄</span><span><strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB)</span></div>`;
 
       const userNoteHtml = userNote ? `<div style="margin-bottom:6px;font-size:13px;line-height:1.4;">${userNote}</div>` : '';
-      appendMessage(`${userNoteHtml}${previewHtml}`, 'user');
+      const inspectionHeading = currentLang === 'ta'
+        ? '🔍 BIS பரிசோதனைக்காக இணைக்கப்பட்ட படம் / ஆவணம்:'
+        : (currentLang === 'hi'
+          ? '🔍 बीआईएस निरीक्षण हेतु संलग्न फ़ोटो / दस्तावेज़:'
+          : '🔍 Attached Image / Document for BIS Inspection:');
+      appendMessage(`${userNoteHtml}<div style="font-weight:600;font-size:11px;color:var(--color-primary, #003082);">${inspectionHeading}</div>${previewHtml}`, 'user');
 
       showTypingIndicator();
       const hudBanner = document.querySelector('.agent-hud-banner');
@@ -1060,88 +1064,60 @@ export function initChatbot() {
       if (hudBanner) hudBanner.style.display = 'flex';
       if (hudText) hudText.textContent = t('processing', currentLang);
 
-      // Send directly to Gemini — no OCR, no preprocessing
-      const apiKey = getActiveGeminiApiKey();
-      if (!apiKey) {
-        if (hudBanner) hudBanner.style.display = 'none';
-        removeTypingIndicator();
-        appendMessage(
-          `📎 **${file.name}** received.\n\nTo analyze this file, please add a **Gemini API key** in settings. Get a free key at [Google AI Studio](https://aistudio.google.com).`,
-          'bot'
-        );
-        return;
-      }
+      let rawText = '';
+      let confidence = 85;
+      let ocrSource = 'Real Optical Character Recognition (OCR)';
 
-      const primaryModel = getActiveGeminiModel() || 'gemini-2.0-flash';
-      const candidateModels = [primaryModel, 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
-        .filter((v, i, a) => Boolean(v) && a.indexOf(v) === i);
-
-      const fileMimeType = file.type || (isImg ? 'image/png' : 'application/octet-stream');
-      const pureBase64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
-
-      // User's message is the prompt; if none, analyze for BIS compliance
-      const userPromptText = userNote || 'Analyze this file from a BIS (Bureau of Indian Standards) compliance perspective. Describe what it is, identify any ISI marks, IS codes, HUID, CM/L numbers, CRS registration numbers, or other BIS-relevant details. If it is a product image or label, assess its BIS compliance status.';
-
-      const systemInstruction = buildBISSystemPrompt(currentLang);
-
-      const parts = [
-        { inlineData: { mimeType: fileMimeType, data: pureBase64 } },
-        { text: userPromptText }
-      ];
-
-      for (const model of candidateModels) {
-        try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: controller.signal,
-            body: JSON.stringify({
-              system_instruction: { parts: [{ text: systemInstruction }] },
-              contents: [{ role: 'user', parts }]
-            })
-          });
-
-          clearTimeout(timeoutId);
-          if (hudBanner) hudBanner.style.display = 'none';
-
-          if (response.ok) {
-            const data = await response.json();
-            const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (replyText && replyText.trim()) {
-              removeTypingIndicator();
-              appendMessage(`${replyText.trim()}\n\n<div class="model-badge">✨ Generated by Google Gemini AI (${model})</div>`, 'bot', [
-                t('chipGrievance', currentLang),
-                t('chipVerifyIsi', currentLang),
-                t('chipPreviewStandard', currentLang)
-              ]);
-              speakText(replyText.trim());
-              return;
-            }
+      try {
+        if (isImg) {
+          // Perform Real In-Browser Tesseract OCR (with fallback to backend)
+          const ocrResult = await performClientOCR(file, base64Data);
+          rawText = ocrResult.text || '';
+          confidence = ocrResult.confidence || 80;
+          ocrSource = ocrResult.source || 'Optical Character Recognition (OCR)';
+        } else {
+          try {
+            rawText = await file.text();
+            confidence = 95;
+            ocrSource = 'Document Text Content';
+          } catch (_) {
+            rawText = file.name;
           }
-
-          if (response.status === 404) continue;
-
-          const errData = await response.json().catch(() => ({}));
-          removeTypingIndicator();
-          appendMessage(`⚠️ Gemini error (${response.status}): ${errData?.error?.message || response.statusText}.`, 'bot');
-          return;
-
-        } catch (err) {
-          if (err.name === 'AbortError') continue;
-          if (hudBanner) hudBanner.style.display = 'none';
-          removeTypingIndicator();
-          appendMessage(`⚠️ Network error: ${err.message || 'Could not reach Gemini API'}.`, 'bot');
-          return;
         }
+      } catch (err) {
+        console.warn('OCR processing error, using text fallback:', err);
       }
 
       if (hudBanner) hudBanner.style.display = 'none';
       removeTypingIndicator();
-      appendMessage('⚠️ None of the available Gemini models could process this file. Try selecting a different model in settings.', 'bot');
+
+      // Extract accurate details directly from actual scanned text
+      const parsed = parseExtractedText(rawText, file.name);
+      parsed.imageDataUrl = isImg ? base64Data : null;
+      parsed.fileName = file.name;
+
+      // Generate honest report
+      const dossier = generateAccurateInspectionReport(
+        parsed,
+        { name: file.name, size: file.size, confidence },
+        ocrSource
+      );
+
+      const botMsg = appendMessage(dossier.html, 'bot', [
+        t('chipGrievance', currentLang),
+        t('chipVerifyIsi', currentLang),
+        t('chipPreviewStandard', currentLang),
+        t('exportChat', currentLang)
+      ]);
+
+      const voiceNotice = currentLang === 'ta'
+        ? (parsed.product ? `ஆவணம் பகுப்பாய்வு செய்யப்பட்டது. தயாரிப்பு: ${parsed.product}. விவரங்களை கீழே நகலெடுத்து, படிவங்களில் நிரப்பவும்.` : `பரிசோதனை நிறைவடைந்தது. விவரங்களை நகலெடுத்து படிவங்களில் நிரப்பலாம்.`)
+        : (currentLang === 'hi'
+          ? (parsed.product ? `दस्तावेज़ का विश्लेषण किया गया। उत्पाद: ${parsed.product}। विवरण कॉपी करें और फ़ॉर्म में पेस्ट करें।` : `निरीक्षण पूर्ण हुआ। विवरण कॉपी करें और संबंधित फ़ॉर्म में भरें।`)
+          : (parsed.product
+            ? `Document analyzed. Identified: ${parsed.product}. Copy the details below and paste them into the relevant form fields.`
+            : `Inspection complete. Copy the extracted details and paste them into the relevant form fields.`));
+      speakText(voiceNotice);
     };
 
     if (cachedDataUrl) {
@@ -1248,9 +1224,7 @@ export function initChatbot() {
       const agentTask = ragResult?.agentTask || null;
 
       if (isFromApi && replyText) {
-        const badgeHtml = `<div class="model-badge">✨ Generated by Google Gemini AI (${usedModel || 'Live'})</div>`;
-        const fullMessage = `${replyText}\n\n${badgeHtml}`;
-        appendMessage(fullMessage, 'bot', suggestions, actions, agentTask);
+        appendMessage(replyText, 'bot', suggestions, actions, agentTask);
         speakText(replyText);
       } else if (ragResult && ragResult.text) {
         const fullContent = apiNotice ? `${apiNotice}\n\n${ragResult.text}` : ragResult.text;
@@ -1438,7 +1412,7 @@ export function initChatbot() {
   function sendWelcomeMessage() {
     const currentLang = getCurrentLanguage();
     const welcomeText = t('welcomeText', currentLang);
-    
+
     const initialSuggestions = [
       t('chipGrievance', currentLang),
       t('chipGoldCalc', currentLang),
