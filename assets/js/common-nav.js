@@ -7,12 +7,19 @@ import { initNavigation } from './navigation.js';
 import { initAnimations } from './animations.js';
 import { initChatbot } from './chatbot.js';
 import { initAccessibility } from './accessibility.js';
+import { initFormAutofillWatcher } from './form-autofill.js';
+import { renderLanguageSelector, updatePageDOMTranslations } from './i18n.js';
 
 export function initCommonPage() {
   initNavigation();
   initAnimations();
   initChatbot();
   initAccessibility();
+  initFormAutofillWatcher();
+  updatePageDOMTranslations();
+
+  // Render topbar language selector if container exists
+  renderLanguageSelector('topbar-lang-container');
 
   // Highlight active link in navigation
   const currentPath = window.location.pathname.split('/').pop() || 'index.html';

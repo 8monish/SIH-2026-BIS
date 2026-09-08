@@ -126,8 +126,9 @@
         <span>|</span>
         <span>Bureau of Indian Standards (BIS)</span>
       </div>
-      <div class="topbar-right">
+      <div class="topbar-right" style="display:flex;align-items:center;gap:12px;">
         <span class="text-xs text-white">Consumer Helpline: <strong>1800-11-0001</strong></span>
+        <div id="topbar-lang-container" class="lang-selector-wrap"></div>
         <a href="index.html" class="lang-toggle">Home</a>
       </div>
     </div>
@@ -289,15 +290,26 @@
                     <input type="date" id="complaint-purchase-date" class="form-control">
                   </div>
                 </div>
+                <div class="grid grid-2 gap-4 mb-4">
+                  <div>
+                    <label class="form-label" for="complaint-purchase-price">Purchase Price / MRP (₹)</label>
+                    <input type="number" id="complaint-purchase-price" class="form-control" placeholder="e.g. 1450">
+                  </div>
+                  <div>
+                    <label class="form-label" for="complaint-invoice-no">Invoice / Bill / Cash Memo No.</label>
+                    <input type="text" id="complaint-invoice-no" class="form-control" placeholder="e.g. INV-849201">
+                  </div>
+                </div>
               </div>
 
               <!-- Step 4: Evidence & Declaration -->
               <div class="wizard-step-panel" data-step="4">
                 <h3 class="text-sm font-bold text-primary mb-4 pb-2 border-b border-gray-100">Step 4 of 4: Evidence & Formal Declaration</h3>
                 <div class="form-group mb-4">
-                  <label class="form-label">Upload Photo Proof (Invoice, Cash Memo, Product / Hallmark Photo)</label>
-                  <input type="file" class="form-control" accept="image/*,.pdf" style="padding: 8px;">
+                  <label class="form-label" for="complaint-evidence-file">Upload Photo Proof (Invoice, Cash Memo, Product / Hallmark Photo)</label>
+                  <input type="file" id="complaint-evidence-file" class="form-control" accept="image/*,.pdf" style="padding: 8px;">
                   <span class="text-xs text-muted mt-1 block">Supported formats: JPG, PNG, PDF (Max 10MB)</span>
+                  <div id="complaint-evidence-preview"></div>
                 </div>
                 <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 mb-6">
                   <label class="flex items-start gap-2 cursor-pointer text-xs text-text">

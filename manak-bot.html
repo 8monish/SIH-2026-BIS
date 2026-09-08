@@ -84,8 +84,9 @@
         <span>|</span>
         <span>Bureau of Indian Standards (BIS)</span>
       </div>
-      <div class="topbar-right">
+      <div class="topbar-right" style="display:flex;align-items:center;gap:12px;">
         <span class="text-xs text-white">Helpline: <strong>1800-11-0001</strong></span>
+        <div id="topbar-lang-container" class="lang-selector-wrap"></div>
         <a href="index.html" class="lang-toggle">Home</a>
       </div>
     </div>
@@ -172,6 +173,7 @@
               </div>
 
               <div class="flex items-center gap-3">
+                <div id="studio-lang-container"></div>
                 <label class="flex items-center gap-2 text-xs text-white cursor-pointer font-medium">
                   <input type="checkbox" id="toggle-speech-synthesis" checked style="accent-color: var(--color-accent);">
                   <span>Voice Readout</span>
@@ -185,20 +187,39 @@
             <!-- Messages Stream -->
             <div class="studio-chat-body" id="studio-chat-messages"></div>
 
+            <!-- Studio Attachment Preview Chip -->
+            <div id="studio-attachment-preview" class="chatbot-attachment-preview" style="display:none;">
+              <div class="attachment-preview-thumb">
+                <img id="studio-preview-img" class="attachment-preview-img" src="" alt="Photo Preview">
+              </div>
+              <div class="attachment-preview-info">
+                <span id="studio-preview-name" class="attachment-preview-name">photo.jpg</span>
+                <span id="studio-preview-size" class="attachment-preview-size">Ready for BIS Forensic Inspection</span>
+              </div>
+              <button type="button" id="studio-preview-remove" class="attachment-preview-remove" title="Remove Photo" aria-label="Remove photo">✕</button>
+            </div>
+
             <!-- Studio Input Bar -->
             <div class="p-4 bg-white border-t border-gray-200 flex items-center gap-3 flex-shrink-0">
-              <button id="btn-studio-mic" class="btn-mic" title="Click to speak (Voice Recognition)">
+              <button type="button" id="btn-studio-mic" class="btn-mic" title="Click to speak (Voice Recognition)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
               </button>
               
-              <button id="btn-studio-upload" class="btn-mic" title="Upload Product Image or Document for Inspection & Legal Roadmap" style="color: var(--color-primary);">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              <!-- Take Photo (Camera Scan) -->
+              <button type="button" id="btn-studio-camera" class="btn-mic" title="Take Photo (Camera Scan)" style="color: var(--color-primary);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+              </button>
+              <input type="file" id="studio-camera-input" accept="image/*" capture="environment" style="display: none;">
+
+              <!-- Upload Photo / Document -->
+              <button type="button" id="btn-studio-upload" class="btn-mic" title="Upload Product Image or Document for Inspection & Legal Roadmap" style="color: var(--color-primary);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
               </button>
               <input type="file" id="studio-file-input" accept="image/*,.pdf,.doc,.docx" style="display: none;">
               
               <input type="text" id="studio-chat-input" class="form-control" placeholder="Ask about ISI Mark, 6-digit HUID, IS Standards, FMCS, or Complaints..." style="padding: 12px 16px; font-size: var(--text-sm);">
               
-              <button id="btn-studio-send" class="btn btn-primary" style="padding: 12px 24px;">
+              <button type="button" id="btn-studio-send" class="btn btn-primary" style="padding: 12px 24px;">
                 Send →
               </button>
             </div>
@@ -262,8 +283,43 @@
 
         </div>
 
+    <!-- Studio Live Camera Scanner Modal -->
+    <div id="studio-camera-modal" class="chatbot-camera-modal" style="display:none;" role="dialog" aria-label="BIS Camera Scanner">
+      <div class="camera-modal-backdrop" id="studio-camera-backdrop"></div>
+      <div class="camera-modal-dialog">
+        <div class="camera-modal-header">
+          <div class="camera-modal-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span>BIS Product & Label Camera Scanner</span>
+          </div>
+          <button type="button" class="camera-modal-close" id="studio-camera-close" title="Close Camera" aria-label="Close Camera">✕</button>
+        </div>
+        <div class="camera-viewport-wrap">
+          <video id="studio-camera-video" class="camera-video" autoplay playsinline muted></video>
+          <div class="camera-scan-frame">
+            <div class="scan-corner scan-tl"></div>
+            <div class="scan-corner scan-tr"></div>
+            <div class="scan-corner scan-bl"></div>
+            <div class="scan-corner scan-br"></div>
+            <div class="scan-laser-line"></div>
+            <span class="scan-instruction">Align ISI Mark, HUID, or Label inside frame</span>
+          </div>
+          <canvas id="studio-camera-canvas" class="camera-canvas" style="display:none;"></canvas>
+        </div>
+        <div class="camera-modal-footer">
+          <button type="button" id="studio-camera-switch" class="camera-switch-btn" title="Switch Camera" aria-label="Switch Camera">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span>Flip</span>
+          </button>
+          <button type="button" id="studio-camera-capture" class="camera-capture-btn" title="Capture Photo" aria-label="Capture Photo">
+            <span class="shutter-inner"></span>
+          </button>
+          <button type="button" id="studio-camera-files" class="camera-gallery-fallback-btn" title="Choose from Files" aria-label="Choose from Files">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <span>Files</span>
+          </button>
+        </div>
       </div>
-
     </div>
   </main>
 

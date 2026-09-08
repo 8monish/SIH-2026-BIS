@@ -2,13 +2,16 @@
  * BIS Portal — Agentic AI Co-Pilot & Assistant Sidebar (ManakBot AI)
  * Official Bureau of Indian Standards (BIS) Automated Assistant
  * Features:
+ * - Real Vision OCR & Deep Document Intelligence (Zero fake details)
+ * - 1-Click Flawless Direct Form Autofilling (Grievance, Verification, Standards, Archive)
+ * - Multilingual AI Co-Pilot with 8 Indian Languages & Voice Input/Readout
  * - Official BIS Emblem Integration & Professional UI
  * - Autonomous cross-portal agent workflows & DOM actuators
- * - Step-by-step form autofilling (Grievance, Gold Compensation, Lab Fees)
- * - Automatic licence verification & standard code previewing
- * - Cross-page session persistence via sessionStorage
- * - Web Speech API voice control & SpeechSynthesis readout
  */
+
+import { performClientOCR, parseExtractedText, generateAccurateInspectionReport } from './ocr-engine.js';
+import { executeDirectFormAction, showAutofillToast, fillGrievanceForm, fillVerificationForm, fillStandardsForm } from './form-autofill.js';
+import { SUPPORTED_LANGUAGES, getCurrentLanguage, setLanguage, t, getVoiceLanguage, getLocalizedRAGResponse } from './i18n.js';
 
 const BIS_LOGO_PNG = `<img src="assets/images/bis-logo.png" alt="BIS Logo" style="height: 26px; width: auto; max-width: 100%; object-fit: contain; vertical-align: middle; background: #ffffff; padding: 2px 4px; border-radius: 4px;">`;
 const BIS_LOGO_ICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle;"><path d="M12 2L2 20H22L12 2Z" fill="#003082"/><path d="M12 7L6 17H18L12 7Z" fill="#FFFFFF"/><circle cx="12" cy="13" r="2.5" fill="#E11D48"/></svg>`;
@@ -16,6 +19,8 @@ const BIS_LOGO_ICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="non
 // ── 1. INJECT CHATBOT DOM ──
 function injectChatbotDOM() {
   if (document.querySelector('.chatbot-window')) return;
+
+  const currentLang = getCurrentLanguage();
 
   const container = document.createElement('div');
   container.className = 'chatbot-portal-wrapper';
@@ -41,11 +46,14 @@ function injectChatbotDOM() {
             <span class="online-indicator"></span>
           </div>
           <div class="chatbot-info">
-            <h4>ManakBot AI Co-Pilot</h4>
-            <p>Bureau of Indian Standards Official Assistant</p>
+            <h4 class="chatbot-title-text">${t('botName', currentLang)}</h4>
+            <p class="chatbot-subtitle-text">${t('botRole', currentLang)}</p>
           </div>
         </div>
         <div class="chatbot-actions">
+          <select class="chatbot-lang-select" aria-label="Select Language" title="Change Language" style="background: rgba(255,255,255,0.18); color:#ffffff; border:1px solid rgba(255,255,255,0.35); border-radius:6px; font-size:11px; font-weight:700; padding:3px 6px; outline:none; cursor:pointer;">
+            ${SUPPORTED_LANGUAGES.map(l => `<option value="${l.code}" ${l.code === currentLang ? 'selected' : ''} style="color:#000000; background:#ffffff;">${l.native} (${l.code.toUpperCase()})</option>`).join('')}
+          </select>
           <button class="chatbot-btn chatbot-voice-toggle" title="Toggle Voice Readout (TTS)" aria-label="Toggle Voice Readout">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
           </button>
@@ -66,12 +74,12 @@ function injectChatbotDOM() {
 
       <!-- Quick Action Deck Bar -->
       <div class="agent-quick-actions-bar">
-        <span class="agent-quick-chip" data-agent-intent="guide_tour">Portal Overview</span>
-        <span class="agent-quick-chip" data-agent-intent="autofill_grievance_sample">Auto-Fill Grievance</span>
-        <span class="agent-quick-chip" data-agent-intent="calc_gold_sample">Gold Calculator</span>
-        <span class="agent-quick-chip" data-agent-intent="verify_isi_sample">Verify CM/L</span>
-        <span class="agent-quick-chip" data-agent-intent="search_water_standard">Preview IS 10500</span>
-        <span class="agent-quick-chip" data-agent-intent="calc_lims_sample">Lab Fee Estimate</span>
+        <span class="agent-quick-chip" data-agent-intent="guide_tour">${t('chipOverview', currentLang)}</span>
+        <span class="agent-quick-chip" data-agent-intent="autofill_grievance_sample">${t('chipGrievance', currentLang)}</span>
+        <span class="agent-quick-chip" data-agent-intent="calc_gold_sample">${t('chipGoldCalc', currentLang)}</span>
+        <span class="agent-quick-chip" data-agent-intent="verify_isi_sample">${t('chipVerifyIsi', currentLang)}</span>
+        <span class="agent-quick-chip" data-agent-intent="search_water_standard">${t('chipPreviewStandard', currentLang)}</span>
+        <span class="agent-quick-chip" data-agent-intent="calc_lims_sample">${t('chipLabFee', currentLang)}</span>
       </div>
 
       <!-- Live Agent HUD Progress Banner -->
@@ -89,19 +97,81 @@ function injectChatbotDOM() {
       <!-- Chat Messages Body -->
       <div class="chatbot-body"></div>
 
+      <!-- Attachment Preview Chip -->
+      <div class="chatbot-attachment-preview" style="display:none;">
+        <div class="attachment-preview-thumb">
+          <img class="attachment-preview-img" src="" alt="Photo Preview">
+        </div>
+        <div class="attachment-preview-info">
+          <span class="attachment-preview-name">photo.jpg</span>
+          <span class="attachment-preview-size">Ready for BIS Forensic Inspection</span>
+        </div>
+        <button type="button" class="attachment-preview-remove" title="Remove Photo" aria-label="Remove photo">✕</button>
+      </div>
+
       <!-- Footer / Input -->
       <div class="chatbot-footer">
-        <input type="file" class="chatbot-file-input" accept="image/*" style="display:none;">
-        <button class="chatbot-upload" title="Scan Document / Upload Image for Vision Autofill" aria-label="Upload Image">
+        <input type="file" class="chatbot-file-input" accept="image/*,.pdf,.doc,.docx,.txt,.json,.csv" style="display:none;">
+        <input type="file" class="chatbot-camera-input" accept="image/*" capture="environment" style="display:none;">
+        
+        <!-- Photo Taking Button (Camera) -->
+        <button type="button" class="chatbot-camera" title="Take Photo (Camera Scan)" aria-label="Take Photo">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
         </button>
-        <input type="text" class="chatbot-input" placeholder="Ask ManakBot or upload image to autofill...">
-        <button class="chatbot-mic" title="Voice Input (Speech-to-Text)" aria-label="Voice Input">
+
+        <!-- Photo Upload Button -->
+        <button type="button" class="chatbot-upload" title="Upload Photo or Document" aria-label="Upload Photo">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        </button>
+
+        <input type="text" class="chatbot-input" placeholder="${t('chatPlaceholder', currentLang)}">
+
+        <button type="button" class="chatbot-mic" title="Voice Input (Speech-to-Text)" aria-label="Voice Input">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
         </button>
-        <button class="chatbot-send" title="Send Message" aria-label="Send Message">
+
+        <button type="button" class="chatbot-send" title="Send Message" aria-label="Send Message">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
         </button>
+      </div>
+    </div>
+
+    <!-- Live Camera Scanner Modal -->
+    <div class="chatbot-camera-modal" style="display:none;" role="dialog" aria-label="BIS Camera Scanner">
+      <div class="camera-modal-backdrop"></div>
+      <div class="camera-modal-dialog">
+        <div class="camera-modal-header">
+          <div class="camera-modal-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span>BIS Product & Label Camera Scanner</span>
+          </div>
+          <button type="button" class="camera-modal-close" title="Close Camera" aria-label="Close Camera">✕</button>
+        </div>
+        <div class="camera-viewport-wrap">
+          <video class="camera-video" autoplay playsinline muted></video>
+          <div class="camera-scan-frame">
+            <div class="scan-corner scan-tl"></div>
+            <div class="scan-corner scan-tr"></div>
+            <div class="scan-corner scan-bl"></div>
+            <div class="scan-corner scan-br"></div>
+            <div class="scan-laser-line"></div>
+            <span class="scan-instruction">Align ISI Mark, HUID, or Label inside frame</span>
+          </div>
+          <canvas class="camera-canvas" style="display:none;"></canvas>
+        </div>
+        <div class="camera-modal-footer">
+          <button type="button" class="camera-switch-btn" title="Switch Camera" aria-label="Switch Camera">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span>Flip</span>
+          </button>
+          <button type="button" class="camera-capture-btn" title="Capture Photo" aria-label="Capture Photo">
+            <span class="shutter-inner"></span>
+          </button>
+          <button type="button" class="camera-gallery-fallback-btn" title="Choose from Files" aria-label="Choose from Files">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <span>Files</span>
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -347,17 +417,301 @@ export function initChatbot() {
   const micBtn = document.querySelector('.chatbot-mic');
   const uploadBtn = document.querySelector('.chatbot-upload');
   const fileInput = document.querySelector('.chatbot-file-input');
+  const cameraBtn = document.querySelector('.chatbot-camera');
+  const cameraInput = document.querySelector('.chatbot-camera-input');
+  const attachmentPreview = document.querySelector('.chatbot-attachment-preview');
+  const attachmentPreviewImg = document.querySelector('.attachment-preview-img');
+  const attachmentPreviewName = document.querySelector('.attachment-preview-name');
+  const attachmentPreviewSize = document.querySelector('.attachment-preview-size');
+  const attachmentPreviewRemove = document.querySelector('.attachment-preview-remove');
+
+  // Camera Modal Elements
+  const cameraModal = document.querySelector('.chatbot-camera-modal');
+  const cameraBackdrop = document.querySelector('.camera-modal-backdrop');
+  const cameraVideo = document.querySelector('.camera-video');
+  const cameraCanvas = document.querySelector('.camera-canvas');
+  const cameraCloseBtn = document.querySelector('.camera-modal-close');
+  const cameraCaptureBtn = document.querySelector('.camera-capture-btn');
+  const cameraSwitchBtn = document.querySelector('.camera-switch-btn');
+  const cameraGalleryBtn = document.querySelector('.camera-gallery-fallback-btn');
+
+  let pendingAttachment = null;
+  let cameraStream = null;
+  let currentFacingMode = 'environment';
   const voiceBanner = document.querySelector('.voice-banner');
   const hudBanner = document.querySelector('.agent-hud-banner');
-  const hudText = document.querySelector('.agent-hud-text');
+  const langSelect = document.querySelector('.chatbot-lang-select');
+  if (langSelect) {
+    langSelect.addEventListener('change', (e) => {
+      setLanguage(e.target.value);
+    });
+  }
 
-  if (!chatWindow) return;
+  // Update UI whenever language changes
+  window.addEventListener('bis_language_changed', (e) => {
+    const newLang = e.detail.lang;
+    if (langSelect) langSelect.value = newLang;
 
+    const titleEl = document.querySelector('.chatbot-title-text');
+    const subtitleEl = document.querySelector('.chatbot-subtitle-text');
+    if (titleEl) titleEl.textContent = t('botName', newLang);
+    if (subtitleEl) subtitleEl.textContent = t('botRole', newLang);
+
+    if (input) input.placeholder = t('chatPlaceholder', newLang);
+
+    const chipMap = {
+      'guide_tour': 'chipOverview',
+      'autofill_grievance_sample': 'chipGrievance',
+      'calc_gold_sample': 'chipGoldCalc',
+      'verify_isi_sample': 'chipVerifyIsi',
+      'search_water_standard': 'chipPreviewStandard',
+      'calc_lims_sample': 'chipLabFee'
+    };
+    document.querySelectorAll('.agent-quick-chip').forEach(chip => {
+      const intent = chip.getAttribute('data-agent-intent');
+      if (chipMap[intent]) chip.textContent = t(chipMap[intent], newLang);
+    });
+
+    if (recognition) {
+      recognition.lang = getVoiceLanguage(newLang);
+    }
+
+    // Post localized confirmation notice in the new language with matching suggestion chips
+    const switchNotice = t('langSwitchedNotice', newLang);
+    appendMessage(switchNotice, 'bot', [
+      t('chipOverview', newLang),
+      t('chipGrievance', newLang),
+      t('chipGoldCalc', newLang),
+      t('chipVerifyIsi', newLang)
+    ]);
+    speakText(switchNotice);
+  });
+
+  // ── ATTACHMENT PREVIEW & FILE HANDLING ──
+  function showAttachmentPreview(file, dataUrl) {
+    pendingAttachment = { file, dataUrl, name: file.name, size: file.size };
+    if (attachmentPreview) {
+      attachmentPreview.style.display = 'flex';
+      if (attachmentPreviewImg) {
+        if (file.type && file.type.startsWith('image/')) {
+          attachmentPreviewImg.src = dataUrl;
+          attachmentPreviewImg.style.display = 'block';
+        } else {
+          attachmentPreviewImg.style.display = 'none';
+        }
+      }
+      if (attachmentPreviewName) {
+        attachmentPreviewName.textContent = file.name;
+      }
+      if (attachmentPreviewSize) {
+        const kb = (file.size / 1024).toFixed(1);
+        attachmentPreviewSize.textContent = `${kb} KB • Ready for BIS Inspection`;
+      }
+    }
+  }
+
+  function clearAttachmentPreview() {
+    pendingAttachment = null;
+    if (attachmentPreview) {
+      attachmentPreview.style.display = 'none';
+      if (attachmentPreviewImg) attachmentPreviewImg.src = '';
+    }
+    if (fileInput) fileInput.value = '';
+    if (cameraInput) cameraInput.value = '';
+  }
+
+  if (attachmentPreviewRemove) {
+    attachmentPreviewRemove.addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearAttachmentPreview();
+    });
+  }
+
+  function handleFileSelected(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      showAttachmentPreview(file, e.target.result);
+      if (input) input.focus();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ── PHOTO TAKING (LIVE CAMERA SCANNER MODAL) ──
+  async function openCameraModal() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (cameraInput) {
+        cameraInput.click();
+      } else if (fileInput) {
+        fileInput.click();
+      }
+      return;
+    }
+
+    if (cameraModal) {
+      cameraModal.style.display = 'flex';
+      await startCameraStream();
+    }
+  }
+
+  async function startCameraStream() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream = null;
+    }
+
+    try {
+      const constraints = {
+        video: {
+          facingMode: { ideal: currentFacingMode },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      };
+
+      let stream = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (_) {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+
+      cameraStream = stream;
+      if (cameraVideo) {
+        cameraVideo.srcObject = stream;
+        cameraVideo.setAttribute('playsinline', 'true');
+        await cameraVideo.play();
+      }
+    } catch (err) {
+      console.warn('Camera stream error:', err);
+      closeCameraModal();
+      if (cameraInput) {
+        cameraInput.click();
+      } else {
+        alert('Camera access could not be initialized. Please check permissions or upload an existing photo.');
+      }
+    }
+  }
+
+  function closeCameraModal() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream = null;
+    }
+    if (cameraVideo) {
+      cameraVideo.srcObject = null;
+    }
+    if (cameraModal) {
+      cameraModal.style.display = 'none';
+    }
+  }
+
+  async function captureCameraSnapshot() {
+    if (!cameraVideo) {
+      closeCameraModal();
+      return;
+    }
+
+    const vw = cameraVideo.videoWidth || 1280;
+    const vh = cameraVideo.videoHeight || 720;
+
+    if (!cameraCanvas) return;
+    cameraCanvas.width = vw;
+    cameraCanvas.height = vh;
+    const ctx = cameraCanvas.getContext('2d');
+    ctx.drawImage(cameraVideo, 0, 0, vw, vh);
+
+    const dataUrl = cameraCanvas.toDataURL('image/jpeg', 0.92);
+    const blob = await new Promise(resolve => cameraCanvas.toBlob(resolve, 'image/jpeg', 0.92));
+    const nowStr = new Date().toISOString().replace(/[:.]/g, '-');
+    const photoFile = new File([blob], `bis_camera_scan_${nowStr}.jpg`, { type: 'image/jpeg' });
+
+    closeCameraModal();
+    showAttachmentPreview(photoFile, dataUrl);
+  }
+
+  function switchCameraFacing() {
+    currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+    startCameraStream();
+  }
+
+  // Camera event triggers
+  if (cameraBtn) {
+    cameraBtn.addEventListener('click', () => openCameraModal());
+  }
+  if (cameraCloseBtn) {
+    cameraCloseBtn.addEventListener('click', () => closeCameraModal());
+  }
+  if (cameraBackdrop) {
+    cameraBackdrop.addEventListener('click', () => closeCameraModal());
+  }
+  if (cameraCaptureBtn) {
+    cameraCaptureBtn.addEventListener('click', () => captureCameraSnapshot());
+  }
+  if (cameraSwitchBtn) {
+    cameraSwitchBtn.addEventListener('click', () => switchCameraFacing());
+  }
+  if (cameraGalleryBtn) {
+    cameraGalleryBtn.addEventListener('click', () => {
+      closeCameraModal();
+      if (fileInput) fileInput.click();
+    });
+  }
+  if (cameraInput) {
+    cameraInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleFileSelected(e.target.files[0]);
+      }
+    });
+  }
+
+  // Photo / File Upload Button
   if (uploadBtn && fileInput) {
     uploadBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', (e) => {
       if (e.target.files && e.target.files[0]) {
-        handleImageUpload(e.target.files[0]);
+        handleFileSelected(e.target.files[0]);
+      }
+    });
+  }
+
+  // Drag and drop onto chat window
+  if (chatWindow) {
+    chatWindow.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      chatWindow.classList.add('drag-over');
+    });
+    chatWindow.addEventListener('dragleave', (e) => {
+      if (!chatWindow.contains(e.relatedTarget)) {
+        chatWindow.classList.remove('drag-over');
+      }
+    });
+    chatWindow.addEventListener('drop', (e) => {
+      e.preventDefault();
+      chatWindow.classList.remove('drag-over');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFileSelected(e.dataTransfer.files[0]);
+      }
+    });
+  }
+
+  // Paste image directly into input
+  if (input) {
+    input.addEventListener('paste', (e) => {
+      if (e.clipboardData && e.clipboardData.items) {
+        for (let i = 0; i < e.clipboardData.items.length; i++) {
+          const item = e.clipboardData.items[i];
+          if (item.type.indexOf('image') !== -1) {
+            const blob = item.getAsFile();
+            if (blob) {
+              const pastedFile = new File([blob], `pasted_label_${Date.now()}.png`, { type: blob.type });
+              handleFileSelected(pastedFile);
+              e.preventDefault();
+              break;
+            }
+          }
+        }
       }
     });
   }
@@ -425,45 +779,46 @@ export function initChatbot() {
   });
 
   function handleQuickAgentAction(intent) {
+    const currentLang = getCurrentLanguage();
+
     if (intent === 'guide_tour') {
-      appendMessage('Guide me through all services on this portal', 'user');
+      const userPrompt = t('quickTourUserPrompt', currentLang);
+      appendMessage(userPrompt, 'user');
       showTypingIndicator();
       setTimeout(() => {
         removeTypingIndicator();
+        const localizedRes = getLocalizedRAGResponse('guide_tour', {}, currentLang);
         appendMessage(
-          `Here is the **Official BIS Portal Directory**:\n\n` +
-          `1. **e-Verification Suite**: Authenticate ISI marks (CM/L), Gold HUID, and CRS electronic registrations.\n` +
-          `2. **Indian Standards Catalog**: Search 22,000+ IS specifications and launch in-browser standard clause previews.\n` +
-          `3. **Consumer Grievances**: 4-step complaint registration wizard and statutory gold purity compensation calculator under BIS Act 2016.\n` +
-          `4. **AHC Directory**: Locate recognized Assaying and Hallmarking Centres across states and pincodes.\n` +
-          `5. **LIMS Labs**: Central & regional laboratories network with sample fee estimation.`,
+          localizedRes.text,
           'bot',
-          ['File Grievance', 'Verify Licence', 'Search Standards', 'Lab Fee Estimator']
+          localizedRes.suggestions,
+          localizedRes.actions
         );
-      }, 500);
+        speakText(localizedRes.text);
+      }, 400);
     } else if (intent === 'autofill_grievance_sample') {
       if (input) {
-        input.value = 'How do I file a consumer complaint for a fake or defective ISI helmet?';
+        input.value = t('sampleGrievancePrompt', currentLang);
         handleSendMessage();
       }
     } else if (intent === 'calc_gold_sample') {
       if (input) {
-        input.value = 'Calculate gold compensation for 15g of 22K gold tested as 18K';
+        input.value = t('sampleGoldPrompt', currentLang);
         handleSendMessage();
       }
     } else if (intent === 'verify_isi_sample') {
       if (input) {
-        input.value = 'How do I verify ISI Licence CM/L-8400123456?';
+        input.value = t('sampleVerifyPrompt', currentLang);
         handleSendMessage();
       }
     } else if (intent === 'search_water_standard') {
       if (input) {
-        input.value = 'Show standard specifications and preview for IS 10500 Drinking Water';
+        input.value = t('sampleStandardPrompt', currentLang);
         handleSendMessage();
       }
     } else if (intent === 'calc_lims_sample') {
       if (input) {
-        input.value = 'How can I estimate lab testing fees for packaged water samples?';
+        input.value = t('sampleLimsPrompt', currentLang);
         handleSendMessage();
       }
     }
@@ -491,7 +846,7 @@ export function initChatbot() {
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
-    utterance.lang = 'en-IN';
+    utterance.lang = getVoiceLanguage(getCurrentLanguage());
     window.speechSynthesis.speak(utterance);
   }
 
@@ -501,7 +856,7 @@ export function initChatbot() {
     recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = 'en-IN';
+    recognition.lang = getVoiceLanguage(getCurrentLanguage());
 
     recognition.onstart = () => {
       isListening = true;
@@ -618,486 +973,118 @@ export function initChatbot() {
     return { product, brand, standard, cml, price };
   }
 
-  // ── MASSIVE FORENSIC COMPLIANCE & LEGAL ROADMAP ENGINE (OFFLINE / FALLBACK) ──
-  function buildComprehensiveForensicFallback(inputName = '', fileText = '', fileName = '') {
-    const cleanInput = (inputName || fileName || 'Industrial / Consumer Product')
-      .replace(/\.[^/.]+$/, '')
-      .replace(/[_-]/g, ' ')
-      .trim();
-
-    const lower = `${cleanInput} ${fileText}`.toLowerCase();
-
-    let archetype = {
-      title: cleanInput.replace(/\b\w/g, l => l.toUpperCase()),
-      brand: 'Identified Manufacturer / Vendor from Scan',
-      standard: 'IS 4151:2015',
-      stdTitle: 'Protective Helmets for Two-Wheeler Motor Vehicle Riders',
-      cml: 'CM/L-8400192847',
-      division: 'Mechanical Engineering Department (MED)',
-      qco: 'Mandatory Quality Control Order (QCO) under Gazette S.O. 3942(E)',
-      mrp: '₹1,450',
-      tat: '12 Working Days',
-      labFee: '₹14,500',
-      clauses: [
-        'Clause 7.1: Impact Absorption & Shock Attenuation Test (Drop anvil at 7.5 m/s)',
-        'Clause 7.2: Penetration Resistance Test with conical steel striker (3 kg dropped from 3m)',
-        'Clause 8.1: Dynamic Retention System & Chin-Strap Displacement under 1.0 kN load',
-        'Clause 9.3: Peripheral Vision Clearance (Min 105° lateral field of view)',
-        'Clause 10.2: Environmental Conditioning (-10°C cold, +50°C heat, UV irradiation)'
-      ],
-      stiEquip: [
-        'Drop test tower with tri-axial accelerometer & digital oscilloscope',
-        'Penetration test rig with hardened drop striker',
-        'Retention dynamic elongation testing apparatus with calibrated load cell',
-        'Climate conditioning chamber (-20°C to +70°C, 95% RH)',
-        'Digital optical projector for peripheral vision angle verification'
-      ],
-      defects: [
-        'Statutory 7-digit CM/L licence number missing below the ISI monogram emblem',
-        'Proportion ratio of the stylized "S" in the ISI monogram distorted beyond statutory tolerances (IS 325)',
-        'Central BIS registry lookup returned UNVERIFIED / UNREGISTERED status for the claimed batch identifier',
-        'Packaging outer label omits mandatory date of manufacture, batch code, and customer care contact'
-      ]
-    };
-
-    if (lower.includes('water') || lower.includes('bottle') || lower.includes('aqua') || lower.includes('beverage') || lower.includes('drink')) {
-      archetype.standard = 'IS 14543:2016';
-      archetype.stdTitle = 'Packaged Drinking Water (Other Than Packaged Natural Mineral Water)';
-      archetype.division = 'Food & Agriculture Department (FAD)';
-      archetype.qco = 'Packaged Drinking Water (Quality Control) Order — 100% Compulsory Pre-Market Certification';
-      archetype.mrp = '₹20 (1 Litre PET Bottle)';
-      archetype.tat = '7 Working Days';
-      archetype.labFee = '₹9,800';
-      archetype.cml = 'CM/L-9200481729';
-      archetype.clauses = [
-        'Clause 5.1: Microbiological Limits (Zero E. coli, Coliform, Faecal Streptococci, Pseudomonas aeruginosa per 250ml)',
-        'Clause 5.2: Toxic Heavy Metals (Lead < 0.01 mg/L, Arsenic < 0.01 mg/L, Cadmium < 0.003 mg/L)',
-        'Clause 5.3: Total Dissolved Solids (TDS) within 75 to 500 mg/L',
-        'Clause 6.2: Pesticide Residues (Individual pesticide max 0.0001 mg/L, Total pesticides max 0.0005 mg/L)',
-        'Clause 7.4: Packaging Integrity (Food-grade tamper-proof tamper-evident sealed closures)'
-      ];
-      archetype.stiEquip = [
-        'Laminar Air Flow (LAF) Class 100 sterile inoculation cabinet',
-        'Bacteriological B.O.D. Incubators (37°C & 44.5°C) & Autoclave',
-        'Gas Chromatography with Mass Spectrometry (GC-MS) or HPLC for pesticide screening',
-        'Atomic Absorption Spectrophotometer (AAS) for trace heavy metals',
-        'Digital Turbidity Meter and pH/Conductivity Analyzer'
-      ];
-      archetype.defects = [
-        'Batch sterilization date absent from bottle neck embossing',
-        'CM/L registration number printed without mandatory "IS 14543" standard headline',
-        'BIS central registry reveals licence expired or allocated to a different bottling unit in another district'
-      ];
-    } else if (lower.includes('cement') || lower.includes('concrete') || lower.includes('mortar') || lower.includes('opc') || lower.includes('ppc')) {
-      archetype.standard = 'IS 1489 (Part 1):2015';
-      archetype.stdTitle = 'Portland Pozzolana Cement (Fly-Ash Based)';
-      archetype.division = 'Civil Engineering Department (CED)';
-      archetype.qco = 'Cement (Quality Control) Order, 2003 — 100% Compulsory Certification';
-      archetype.mrp = '₹390 / 50kg HDPE Bag';
-      archetype.tat = '28 Working Days';
-      archetype.labFee = '₹18,500';
-      archetype.cml = 'CM/L-7100349281';
-      archetype.clauses = [
-        'Clause 6.1: Compressive Strength (Min 16 MPa at 3 days, 22 MPa at 7 days, 33 MPa at 28 days)',
-        'Clause 6.2: Setting Time (Initial setting time not less than 30 mins, final not more than 600 mins)',
-        'Clause 6.3: Fineness by Blaine Specific Surface (Not less than 300 m²/kg)',
-        'Clause 6.4: Soundness by Le-Chatelier (Expansion not more than 10 mm) and Autoclave (< 0.8%)',
-        'Clause 7.1: Pozzolana Constituents (Fly ash content between 15% and 35% by mass)'
-      ];
-      archetype.stiEquip = [
-        'Automatic Compressive Strength Testing Machine (2000 kN calibrated load frame)',
-        'Vicat Apparatus with standardized plungers for setting time determination',
-        'Blaine Air Permeability Apparatus for specific surface measurement',
-        'Le-Chatelier Water Bath with micrometer measuring calipers',
-        'Autoclave steam chamber rated for 2.1 MPa operational pressure'
-      ];
-    } else if (lower.includes('cable') || lower.includes('wire') || lower.includes('copper') || lower.includes('cord') || lower.includes('conductor')) {
-      archetype.standard = 'IS 694:2010';
-      archetype.stdTitle = 'Polyvinyl Chloride Insulated Unsheathed and Sheathed Cables for Working Voltages up to 1100V';
-      archetype.division = 'Electrotechnical Department (ETD)';
-      archetype.qco = 'Electrical Wires and Cables (Quality Control) Order, 2023 — Mandatory ISI Certification';
-      archetype.mrp = '₹1,850 / 90m Coil';
-      archetype.tat = '10 Working Days';
-      archetype.labFee = '₹12,200';
-      archetype.cml = 'CM/L-5300184920';
-      archetype.clauses = [
-        'Clause 9.1: Conductor Resistance per km at 20°C (Adherence to IS 8130 maximum values)',
-        'Clause 9.2: High Voltage Spark Test (Online spark test at 6.0 kV without insulation breakdown)',
-        'Clause 9.3: Insulation Resistance (Volume resistivity at 70°C min 1 x 10¹⁰ Ω-cm)',
-        'Clause 10.1: Flammability Test (Bunched cable flame spread under IEC/IS test burner)',
-        'Clause 10.4: Tensile Strength & Elongation at Break of PVC Insulation (Min 12.5 N/mm² & 150%)'
-      ];
-      archetype.stiEquip = [
-        'Kelvin Double Bridge or Micro-ohmmeter with temperature compensation',
-        'High Voltage In-Line Spark Tester (0–15 kV AC/DC)',
-        'Megohmmeter / Insulation Resistance Tester with water bath conditioning',
-        'Tensile Testing Machine with dumbbell die punch and optical extensometer',
-        'Flammability chimney test chamber conforming to IS 10810 (Part 53)'
-      ];
-    } else if (lower.includes('gold') || lower.includes('jewel') || lower.includes('huid') || lower.includes('hallmark') || lower.includes('silver') || lower.includes('ornament')) {
-      archetype.standard = 'IS 1417:2016';
-      archetype.stdTitle = 'Gold and Gold Alloys — Purity Grades and Hallmarking Specifications';
-      archetype.division = 'Metallurgical Engineering Department (MTD)';
-      archetype.qco = 'Hallmarking of Gold Jewellery and Gold Artefacts Order, 2020 — Mandatory in 343+ Districts';
-      archetype.mrp = '₹68,400 (per 10g 22K)';
-      archetype.tat = '24–48 Hours';
-      archetype.labFee = '₹500 (Assaying & Testing Fee)';
-      archetype.cml = 'HUID: XY9824';
-      archetype.clauses = [
-        'Clause 4.1: Standard Fineness Grades (24K999, 23K958, 22K916, 20K833, 18K750, 14K585)',
-        'Clause 5.1: Fire Assay & Cupellation Method (IS 1418 destructive reference method)',
-        'Clause 5.2: X-Ray Fluorescence Spectrometry (XRF non-destructive multi-point verification)',
-        'Clause 6.1: Laser Inscription of the 3 Mandatory Hallmarks (BIS Triangle, Fineness, 6-digit HUID)',
-        'Clause 7.2: Chain of Custody & Assaying Record in National Assaying Database'
-      ];
-      archetype.stiEquip = [
-        'Energy Dispersive X-Ray Fluorescence (ED-XRF) Gold Spectrometer',
-        'High Precision Micro-analytical Balance (Readability 0.01 mg / 0.00001g)',
-        'Muffle Assay Furnace operating at 1100°C for cupellation',
-        'Parting Apparatus with nitric acid digestion glassware',
-        'Diode Laser Marking System for micro-scale HUID laser inscription'
-      ];
-    } else if (lower.includes('iron') || lower.includes('steel') || lower.includes('tmt') || lower.includes('rebar') || lower.includes('rod')) {
-      archetype.standard = 'IS 1786:2008';
-      archetype.stdTitle = 'High Strength Deformed Steel Bars and Wires for Concrete Reinforcement';
-      archetype.division = 'Metallurgical Engineering Department (MTD)';
-      archetype.qco = 'Steel and Steel Products (Quality Control) Order — 100% Compulsory Certification';
-      archetype.mrp = '₹58,000 / Metric Tonne';
-      archetype.tat = '14 Working Days';
-      archetype.labFee = '₹22,000';
-      archetype.cml = 'CM/L-4400827103';
-      archetype.clauses = [
-        'Clause 8.1: Chemical Composition (Carbon max 0.25%, Sulfur max 0.040%, Phosphorus max 0.040%)',
-        'Clause 9.1: 0.2% Proof Stress / Yield Stress (Min 500 MPa for Fe 500D)',
-        'Clause 9.2: Tensile Strength to Yield Ratio (Min 1.10 TS/YS for high seismic ductility)',
-        'Clause 9.3: Total Elongation at Maximum Force (Min 16% elongation)',
-        'Clause 9.4: Bend and Rebend Test around 180° mandrel without transverse cracking'
-      ];
-      archetype.stiEquip = [
-        'Optical Emission Spectrometer (OES) for multi-element steel chemistry',
-        'Universal Testing Machine (UTM) 1000 kN capacity with electronic extensometer',
-        'Mandrel Bend and Rebend Testing Apparatus',
-        'Surface Rib Geometry Measuring Micrometer and Profile Projector'
-      ];
-    } else if (lower.includes('plug') || lower.includes('socket') || lower.includes('switch') || lower.includes('adapter')) {
-      archetype.standard = 'IS 1293:2019';
-      archetype.stdTitle = 'Plugs and Socket-Outlets for Household and Similar Purposes up to 250V';
-      archetype.division = 'Electrotechnical Department (ETD)';
-      archetype.qco = 'Plugs and Socket-Outlets (Quality Control) Order, 2022 — Mandatory BIS Certification';
-      archetype.mrp = '₹145';
-      archetype.tat = '10 Working Days';
-      archetype.labFee = '₹11,000';
-      archetype.cml = 'CM/L-8200193482';
-      archetype.clauses = [
-        'Clause 9.1: Dimensions and Tolerances of Pins and Contact Apertures (Gauges A, B, C)',
-        'Clause 13.1: Protection Against Electric Shock (Safety shutters covering live terminals)',
-        'Clause 19.1: Temperature Rise Test under rated 16A continuous current (< 45K rise)',
-        'Clause 20.1: Making and Breaking Capacity under inductive electrical load (10,000 operations)',
-        'Clause 21.1: Resistance to Heat and Fire (Glow-wire test at 750°C and 850°C)'
-      ];
-      archetype.stiEquip = [
-        'Comprehensive Set of Hardened Steel Dimensional Go/No-Go Inspection Gauges',
-        'Multipoint Temperature Rise Test Rig with constant current power supply',
-        'Endurance Testing Machine for rotary and withdrawal insertion cycling',
-        'Glow-Wire Flammability Test Apparatus (ambient to 960°C)',
-        'High Voltage Flash Breakdown Tester (0–5 kV)'
-      ];
-    } else if (lower.includes('toy') || lower.includes('game') || lower.includes('doll') || lower.includes('child')) {
-      archetype.standard = 'IS 9873 (Part 1):2019';
-      archetype.stdTitle = 'Safety of Toys — Mechanical and Physical Properties';
-      archetype.division = 'Production & General Engineering Department (PCD)';
-      archetype.qco = 'Toys (Quality Control) Order, 2020 — 100% Mandatory Certification in India';
-      archetype.mrp = '₹799';
-      archetype.tat = '8 Working Days';
-      archetype.labFee = '₹8,500';
-      archetype.cml = 'CM/L-6100982341';
-      archetype.clauses = [
-        'Clause 4.1: Small Parts & Choking Hazard cylinder test for children under 36 months',
-        'Clause 4.2: Sharp Edges and Points Test using calibrated force gauge and probe',
-        'Clause 5.1: Drop Test (5 drops from 850mm onto 4mm steel plate backed by concrete)',
-        'Clause 5.24: Tension Test on seams and attached components (up to 70 N pull force)',
-        'Clause 7.1: Flammability & Migration of 8 Toxic Heavy Metals (IS 9873 Part 3)'
-      ];
-      archetype.stiEquip = [
-        'Small Parts Choking Test Cylinder conforming to Figure 13 of IS 9873',
-        'Sharp Edge Tester with self-adhesive PTFE tape and calibrated rotating mandrel',
-        'Sharp Point Tester with indicator light and 4.5 N spring gauge',
-        'Impact and Drop Test Rig with hardened concrete anvil',
-        'Inductively Coupled Plasma Mass Spectrometer (ICP-MS) for heavy metals migration'
-      ];
-    } else {
-      archetype.title = cleanInput.replace(/\b\w/g, l => l.toUpperCase());
-      archetype.standard = 'IS 16102 (Part 1):2012';
-      archetype.stdTitle = `${archetype.title} — Performance, Safety & Quality Specifications`;
-      archetype.division = 'Electronics & Information Technology (LITD) / Consumer Products';
-      archetype.qco = 'Compulsory Registration Scheme (CRS) / Quality Control Order (QCO) Notification';
-      archetype.mrp = '₹1,299';
-      archetype.tat = '14 Working Days';
-      archetype.labFee = '₹15,000';
-      archetype.cml = `CM/L-${Math.floor(5000000000 + Math.random() * 4000000000)}`;
-      archetype.clauses = [
-        'Clause 6.1: Marking & Statutory Label Legibility (Durability under water & petroleum spirits wipe)',
-        'Clause 7.1: Electrical Insulation Resistance & Dielectric High-Voltage Withstand Test',
-        'Clause 8.3: Mechanical Strength & Impact Shock Resistance under drop & vibration',
-        'Clause 9.2: Thermal Endurance & Abnormal Operating Condition Thermal Runaway Prevention',
-        'Clause 11.4: Toxic Chemical Substance & Hazardous Material Restrictions (RoHS Compliance)'
-      ];
-      archetype.stiEquip = [
-        'Digital Insulation Resistance & High-Potential Withstand Tester',
-        'Calibrated Mechanical Impact Drop Rig and Tri-axial Vibration Shaker Table',
-        'Constant Temperature & Environmental Humidity Conditioning Chamber',
-        'Digital Precision Power Meter & Harmonic Distortion Analyzer',
-        'Multi-channel Thermal Data Logger with type-K thermocouple probes'
-      ];
-    }
-
-    const docketId = `BIS-GR-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const prefillUrl = `grievance-redressal.html?product=${encodeURIComponent(archetype.title)}&category=${encodeURIComponent('Misuse of ISI Mark (Substandard Product)')}&details=${encodeURIComponent('Forensic audit detected non-compliance with statutory marking standards: ' + archetype.defects[0])}&seller=${encodeURIComponent(archetype.brand)}&price=${encodeURIComponent(archetype.mrp.replace(/[^\d]/g, '') || '1200')}&invoice=${encodeURIComponent(`INV-${Math.floor(100000 + Math.random() * 900000)}`)}`;
-    const stdQuery = archetype.standard.split(':')[0].trim();
-    const stdUrl = `standards-search.html?q=${encodeURIComponent(stdQuery)}`;
-    const verifyCode = archetype.cml.replace(/HUID:\s*/i, '');
-    const verifyUrl = `verify-licence.html?type=${archetype.cml.startsWith('HUID') ? 'huid' : 'isi'}&code=${encodeURIComponent(verifyCode)}`;
-
-    const reportText = `### 🛡️ **BUREAU OF INDIAN STANDARDS (BIS)**
-**Central Forensic Quality Inspection & Statutory Compliance Directorate**
-**Forensic Dossier ID:** \`BIS/ENF/2026/${Math.floor(100000 + Math.random() * 900000)}\`
-
----
-
-### 📑 **SECTION 1: FORENSIC PRODUCT EXTRACTION & SPECIFICATIONS DOSSIER**
-• **Identified Product**: **${archetype.title}**
-• **Trade Brand / Manufacturer**: ${archetype.brand}
-• **Applicable Statutory Standard**: **${archetype.standard}** (*${archetype.stdTitle}*)
-• **Technical Division**: ${archetype.division}
-• **Claimed Certification Mark**: \`${archetype.cml}\`
-• **Mandatory Quality Control Order (QCO)**: ⚠️ **${archetype.qco}**
-• **Commercial Price / Estimated MRP**: ${archetype.mrp}
-• **Laboratory Benchmark Assessment**: Estimated Fee: **${archetype.labFee}** | Turnaround Time: **${archetype.tat}**
-
----
-
-### 🔬 **SECTION 2: STATUTORY AUTHENTICITY & COUNTERFEIT AUDIT VERDICT**
-• **Statutory Compliance Verdict**: ⚠️ **SUSPICIOUS / COUNTERFEIT MARKING DETECTED**
-• **Counterfeit Risk Assessment**: **87% Risk Score (High Hazard Classification)**
-• **Forensic Discrepancy Findings**:
-${archetype.defects.map((d, i) => `  ${i + 1}. **Anomaly ${i + 1}**: ${d}`).join('\n')}
-• **Mandatory Law & Gazette Enforcement**:
-  - This product category is governed by a **Compulsory Quality Control Order (QCO)** notified by the Government of India.
-  - Selling, distributing, or stocking this product without a valid BIS license is a **cognizable and non-bailable statutory violation** under **Section 29 of the BIS Act, 2016**.
-  - **Statutory Penalties**: Imprisonment for a term which may extend to **2 years**, or a fine not less than **₹2,00,000** (extendable up to 10 times the value of goods seized).
-
----
-
-### 🏭 **SECTION 3: MASTER STEP-BY-STEP LEGAL ROADMAP: HOW TO CERTIFY THIS PRODUCT (FROM SCRATCH)**
-*Exhaustive 6-Phase Certification Workflow for Manufacturers & Vendors seeking an authentic BIS ISI / CRS licence:*
-
-1. **Phase 1: Standard Scoping & Gap Analysis**
-   - Access **${archetype.standard}** on the [Indian Standards Catalog](standards-search.html).
-   - Your product design must satisfy mandatory statutory test benchmarks:
-${archetype.clauses.map(c => `     • *${c}*`).join('\n')}
-
-2. **Phase 2: In-House Testing Laboratory Setup (STI)**
-   - Equip your manufacturing facility according to the **Scheme of Testing and Inspection (STI)** with dedicated quality testing personnel and the following calibrated apparatus:
-${archetype.stiEquip.map(e => `     • *${e}*`).join('\n')}
-
-3. **Phase 3: Pre-Commissioning Prototype Testing via LIMS**
-   - Submit production prototypes to a recognized BIS/NABL testing facility located on the [LIMS Laboratory Directory](lims-lab-directory.html).
-   - Expected Testing Tariff: **${archetype.labFee}**; Official TAT: **${archetype.tat}**.
-
-4. **Phase 4: Digital Application on Manakonline**
-   - File Form-I on the official [Manakonline Portal](https://www.manakonline.in).
-   - Upload manufacturing layout diagrams, factory machinery lists, calibration certificates, raw material test records, and in-house laboratory test sheets.
-
-5. **Phase 5: Technical Officer On-Site Factory Audit**
-   - A designated BIS Technical Officer conducts on-site factory verification, checks batch inspection logs, audits raw material sourcing, and draws independent market validation samples.
-
-6. **Phase 6: Grant of Authentic CM/L Licence & Affixing Mark**
-   - Upon successful compliance verification, BIS grants your 10-digit **CM/L-XXXXXXXXX** licence.
-   - Legally affix the authentic ISI monogram with standard number printed above and CM/L printed directly below.
-
----
-
-### ⚖️ **SECTION 4: CONSUMER PROTECTION & STATUTORY REDRESSAL**
-• **Auto-Generated Grievance Docket**: \`${docketId}\`
-• If you purchased this product, you are legally entitled to compensation or replacement under Section 14 & 29 of the BIS Act, 2016.
-• BIS Enforcement Officers conduct search and seizure raids under Section 28 to confiscate non-compliant warehouse inventories.`;
-
-    return {
-      docketId,
-      product: archetype.title,
-      brand: archetype.brand,
-      standard: archetype.standard,
-      cml: archetype.cml,
-      price: archetype.mrp,
-      text: reportText,
-      suggestions: [
-        'Show Manufacturer Roadmap',
-        'Verify 10-digit CM/L',
-        'LIMS Testing Labs',
-        'Standards Catalog'
-      ],
-      actions: [
-        { text: '📝 Open Pre-Filled Grievance Form', url: prefillUrl },
-        { text: '🔍 Verify Licence on Portal', url: verifyUrl },
-        { text: `📖 View Standard (${stdQuery})`, url: stdUrl },
-        { text: '🧪 Estimate LIMS Lab Fee', url: 'lims-lab-directory.html' }
-      ]
-    };
+  // ── REAL ACCURATE INSPECTION ENGINE (ZERO FAKE DATA) ──
+  function buildAccurateInspectionDossier(rawText = '', fileName = '', fileMeta = {}) {
+    const parsed = parseExtractedText(rawText, fileName);
+    return generateAccurateInspectionReport(parsed, fileMeta, fileMeta.source || 'Optical Character Recognition (OCR)');
   }
 
-  // ── CALL FORENSIC INSPECTION LLM WITH FILE VISION & METADATA ──
-  async function callForensicInspectionLLM(file, base64Data, textContent = '') {
-    const isImg = file.type.startsWith('image/');
-    const userApiKey = GEMINI_API_KEY;
+  // ── REAL MULTIMODAL VISION OCR & FILE DATA EXTRACTION ──
+  async function handleImageUpload(file, userNote = '', cachedDataUrl = null) {
+    if (!file) return;
 
-    const systemPrompt = `You are the Chief Technical & Forensic Officer of the Bureau of Indian Standards (BIS), Ministry of Consumer Affairs, Food & Public Distribution, Government of India.
-You are conducting an official statutory inspection of an uploaded product image or document named: "${file.name}".
+    const isImg = file.type && file.type.startsWith('image/');
+    
+    const processData = async (base64Data) => {
+      const currentLang = getCurrentLanguage();
 
-CRITICAL INSTRUCTIONS:
-1. READ AND EXTRACT ALL REAL & VISIBLE DETAILS directly from the image/file: product name, brand/marketer, model, serial/batch number, claimed certifications (ISI, Hallmark, CRS, ISO, CE), licence numbers (CM/L, HUID, R-number), MRP/price, seller/store name, material composition, wattage/voltage, manufacturing/expiry dates, barcode/QR codes, and defect observations.
-2. If any detail is partially obscured or unstated, provide a realistic approximation based strictly on the product type observed. DO NOT use generic fake placeholders.
-3. MAKE THE REPORT COMPREHENSIVE, MASSIVE, EXHAUSTIVE, AND HIGH-FIDELITY ("big asf"), with deeply detailed technical analysis, standard clauses, factory testing equipment, and statutory regulations.
+      // Append Image / Document User Bubble in official BIS blue styling
+      const previewHtml = isImg
+        ? `<img src="${base64Data}" style="max-width:220px;max-height:160px;border-radius:8px;border:1.5px solid var(--color-primary-100, #d0def2);display:block;margin-top:6px;box-shadow:0 2px 6px rgba(0,48,130,0.12);" alt="Uploaded Document">`
+        : `<div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--color-primary, #003082);padding:8px 12px;background:var(--color-primary-50, #e8eef8);border-radius:8px;border:1px solid var(--color-primary-100, #d0def2);"><span style="font-size:22px;">📄</span><span><strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB)</span></div>`;
 
-STRUCTURE YOUR REPORT INTO THESE 4 COMPREHENSIVE SECTIONS:
+      const userNoteHtml = userNote ? `<div style="margin-bottom:6px;font-size:13px;line-height:1.4;">${userNote}</div>` : '';
+      const inspectionHeading = currentLang === 'ta'
+        ? '🔍 BIS பரிசோதனைக்காக இணைக்கப்பட்ட படம் / ஆவணம்:'
+        : (currentLang === 'hi'
+          ? '🔍 बीआईएस निरीक्षण हेतु संलग्न फ़ोटो / दस्तावेज़:'
+          : '🔍 Attached Image / Document for BIS Inspection:');
+      appendMessage(`${userNoteHtml}<div style="font-weight:600;font-size:11px;color:var(--color-primary, #003082);">${inspectionHeading}</div>${previewHtml}`, 'user');
 
-### 📑 SECTION 1: FORENSIC PRODUCT EXTRACTION & SPECIFICATIONS DOSSIER
-• **Identified Product Name & Variant**: [Exact or approximated product name]
-• **Brand / Trade Name & Manufacturer**: [Detected brand, company, and packaging details]
-• **Applicable Indian Standard (IS Code)**: [e.g., IS 4151, IS 14543, IS 694, IS 1417, IS 1293, IS 269, IS 16102, IS 9873, etc.]
-• **Claimed Certification Marks & Licences**: [CM/L-XXXXXXXXXX, 6-digit HUID, or indicate if missing/fraudulent]
-• **Monogram & Logo Forensic Observation**: [ISI logo typography, proportions, standard number placement, licence number placement]
-• **Packaging & Net Quantity / Physical Specs**: [Weight, dimensions, container type, batch number, date of mfg]
-• **Retail & Commercial Pricing**: [MRP, selling price, invoice reference if visible]
-• **Key Technical Parameters Observed**: [Electrical ratings, material specs, safety warnings, chemical/purity properties]
+      showTypingIndicator();
+      const hudBanner = document.querySelector('.agent-hud-banner');
+      const hudText = document.querySelector('.agent-hud-text');
+      if (hudBanner) hudBanner.style.display = 'flex';
+      if (hudText) hudText.textContent = t('processing', currentLang);
 
----
+      let rawText = '';
+      let confidence = 85;
+      let ocrSource = 'Real Optical Character Recognition (OCR)';
 
-### 🔬 SECTION 2: STATUTORY AUTHENTICITY & COUNTERFEIT AUDIT VERDICT
-• **Authenticity Status**: [⚠️ SUSPICIOUS / COUNTERFEIT DETECTED or ✅ PROVISIONALLY AUTHENTIC MARKING]
-• **Counterfeit Risk Score**: [e.g., 88% Suspicious / High Risk]
-• **Forensic Discrepancies & Anomaly Log**:
-  - Logo Geometry: [Proportion ratio 1:1.414 audit, font discrepancies, missing statutory sub-licence identifier]
-  - BIS Central Registry Cross-Verification: [Licence database check, manufacturer mismatch, validity status]
-  - Mandatory Quality Control Order (QCO) Status: [Gazette notification number, mandatory certification law in India]
-• **Consumer Safety & Hazard Evaluation**: [Potential safety risks: fire hazard, toxic leaching, structural failure, electric shock, etc.]
-• **Statutory Legal Penalties**: Under Section 29 of the BIS Act, 2016, manufacturing, stocking, or selling non-certified goods under mandatory QCO is a cognizable offence punishable with imprisonment up to 2 years and a fine of not less than ₹2,00,000 (or up to 10x the value of goods).
-
----
-
-### 🏭 SECTION 3: MASTER STEP-BY-STEP LEGAL ROADMAP: HOW TO APPLY FOR IS CODE LICENCE (FROM SCRATCH)
-Provide an exhaustive 6-step technical roadmap tailored specifically to this product for manufacturers/vendors:
-1. **Standard Scoping & Mandatory Test Clauses**: Specific clauses of the relevant IS code (e.g. Clause 7 Impact Absorption, Clause 8 Retention, or Clause 9 Electrical Resistance, etc.).
-2. **In-House Testing Setup (STI)**: Exact testing equipment required under the Scheme of Testing and Inspection (e.g., tensile tester, spark tester, drop anvil, spectrophotometer, incubator).
-3. **Pre-Commissioning Sample Testing (LIMS)**: Sending benchmark prototypes to accredited BIS/NABL laboratories; specify exact estimated testing fee in INR (e.g. ₹14,500) and Turnaround Time (TAT) in working days.
-4. **Digital Application Submission (Manakonline)**: Form-I filing, uploading factory layout, machinery list, raw material test certificates, calibration logs, and STI undertaking.
-5. **Technical Officer On-Site Factory Audit**: Production line verification, quality control calibration audit, and drawing of independent market verification samples.
-6. **Grant of 10-Digit CM/L Licence**: Official CM/L issuance, annual renewal fee, and guidelines for affixing the authentic ISI mark.
-
----
-
-### ⚖️ SECTION 4: CONSUMER GRIEVANCE & STATUTORY LEGAL RECOURSE
-• **Pre-Generated Grievance Docket**: BIS-GR-2026-${Math.floor(1000 + Math.random() * 9000)}
-• **Statutory Recourse**: Action under Section 28 (BIS Enforcement market surveillance raids and sample seizures) and Section 14 (Refund, replacement, or 2x financial compensation for substandard goods).`;
-
-    for (const model of GEMINI_CANDIDATE_MODELS) {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 18000); // 18s timeout
-
-        const parts = [];
-        if (isImg && base64Data) {
-          const cleanBase64 = base64Data.split(',')[1];
-          parts.push({ inline_data: { mime_type: file.type || 'image/jpeg', data: cleanBase64 } });
-        }
-        const textPayload = textContent ? `\n\n[FILE TEXT CONTENT EXCERPT]:\n${textContent.substring(0, 3000)}` : '';
-        parts.push({ text: `Analyze this uploaded product document/image ("${file.name}"). Perform a full forensic inspection.${textPayload}` });
-
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userApiKey}`;
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: systemPrompt }] },
-            contents: [{ role: 'user', parts }]
-          })
-        });
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-          const data = await response.json();
-          const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (replyText && replyText.length > 200) {
-            const parsed = extractParamsFromForensicText(replyText, file.name);
-            const docketId = `BIS-GR-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-            const prefillUrl = `grievance-redressal.html?product=${encodeURIComponent(parsed.product || file.name)}&category=${encodeURIComponent('Misuse of ISI Mark (Substandard Product)')}&details=${encodeURIComponent('Forensic audit from file scan detected marking discrepancy.')}&seller=${encodeURIComponent(parsed.brand || 'Extracted Vendor')}&price=${encodeURIComponent(parsed.price || '1200')}&invoice=${encodeURIComponent(`INV-${Math.floor(100000 + Math.random() * 900000)}`)}`;
-            const stdQuery = (parsed.standard || 'IS 4151').split(':')[0].trim();
-            const stdUrl = `standards-search.html?q=${encodeURIComponent(stdQuery)}`;
-            const verifyCode = (parsed.cml || 'CM/L-8400192847').replace(/HUID:\s*/i, '');
-            const verifyUrl = `verify-licence.html?type=${(parsed.cml || '').startsWith('HUID') ? 'huid' : 'isi'}&code=${encodeURIComponent(verifyCode)}`;
-
-            return {
-              text: replyText,
-              suggestions: [
-                'Show Manufacturer Roadmap',
-                'Verify 10-digit CM/L',
-                'LIMS Testing Labs',
-                'Standards Catalog'
-              ],
-              actions: [
-                { text: '📝 Open Pre-Filled Grievance Form', url: prefillUrl },
-                { text: '🔍 Verify Licence on Portal', url: verifyUrl },
-                { text: `📖 View Standard (${stdQuery})`, url: stdUrl },
-                { text: '🧪 Estimate LIMS Lab Fee', url: 'lims-lab-directory.html' }
-              ]
-            };
+        if (isImg) {
+          // Perform Real In-Browser Tesseract OCR (with fallback to backend)
+          const ocrResult = await performClientOCR(file, base64Data);
+          rawText = ocrResult.text || '';
+          confidence = ocrResult.confidence || 80;
+          ocrSource = ocrResult.source || 'Optical Character Recognition (OCR)';
+        } else {
+          try {
+            rawText = await file.text();
+            confidence = 95;
+            ocrSource = 'Document Text Content';
+          } catch (_) {
+            rawText = file.name;
           }
         }
       } catch (err) {
-        console.log(`Forensic model ${model} notice:`, err.message || err);
-      }
-    }
-
-    // Offline / Network Fallback
-    return buildComprehensiveForensicFallback(file.name, textContent, file.name);
-  }
-
-  // ── MULTIMODAL VISION OCR & FILE DATA EXTRACTION ──
-  async function handleImageUpload(file) {
-    if (!file) return;
-
-    const isImg = file.type.startsWith('image/');
-    const reader = new FileReader();
-
-    reader.onload = async (e) => {
-      const base64Data = e.target.result;
-
-      // Append Image / Document User Bubble
-      const previewHtml = isImg
-        ? `<img src="${base64Data}" style="max-width:200px;max-height:140px;border-radius:8px;border:1px solid #cbd5e1;display:block;margin-top:4px;" alt="Uploaded Product">`
-        : `<div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:#1e40af;padding:6px 10px;background:#eff6ff;border-radius:6px;border:1px solid #bfdbfe;"><span style="font-size:22px;">📄</span><span><strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB)</span></div>`;
-
-      appendMessage(`<div style="font-weight:600;font-size:11px;">🔍 Uploaded Product File for Forensic AI Inspection:</div>${previewHtml}`, 'user');
-
-      showTypingIndicator();
-
-      // Read text content if not an image (e.g. txt, csv, doc, json)
-      let textContent = '';
-      if (!isImg && file.size < 2000000) {
-        try {
-          textContent = await file.text();
-        } catch (_) {}
+        console.warn('OCR processing error, using text fallback:', err);
       }
 
-      const dossier = await callForensicInspectionLLM(file, base64Data, textContent);
-
+      if (hudBanner) hudBanner.style.display = 'none';
       removeTypingIndicator();
 
-      appendMessage(dossier.text, 'bot', dossier.suggestions, dossier.actions);
-      speakText(dossier.text);
+      // Extract accurate details directly from actual scanned text
+      const parsed = parseExtractedText(rawText, file.name);
+      parsed.imageDataUrl = isImg ? base64Data : null;
+      parsed.fileName = file.name;
+
+      // Generate honest report
+      const dossier = generateAccurateInspectionReport(
+        parsed,
+        { name: file.name, size: file.size, confidence },
+        ocrSource
+      );
+
+      const botMsg = appendMessage(dossier.html, 'bot', [
+        t('chipGrievance', currentLang),
+        t('chipVerifyIsi', currentLang),
+        t('chipPreviewStandard', currentLang),
+        t('exportChat', currentLang)
+      ]);
+
+      // Bind One-Click Direct Form Actions
+      if (botMsg) {
+        botMsg.querySelectorAll('.btn-direct-autofill').forEach(btn => {
+          btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            const action = btn.getAttribute('data-action');
+            executeDirectFormAction(action, {
+              ...parsed,
+              imageDataUrl: isImg ? base64Data : null,
+              fileName: file.name
+            });
+          });
+        });
+      }
+
+      const voiceNotice = currentLang === 'ta'
+        ? (parsed.product ? `ஆவணம் பகுப்பாய்வு செய்யப்பட்டது. தயாரிப்பு: ${parsed.product}. விவரங்களை படிவங்களில் நேரடியாக நிரப்ப கீழே உள்ள பொத்தான்களைப் பயன்படுத்தவும்.` : `பரிசோதனை நிறைவடைந்தது. விவரங்களை நேரடியாக படிவங்களில் நிரப்பலாம்.`)
+        : (currentLang === 'hi'
+          ? (parsed.product ? `दस्तावेज़ का विश्लेषण किया गया। उत्पाद: ${parsed.product}। फ़ॉर्म भरने के लिए नीचे दिए गए बटन का उपयोग करें।` : `निरीक्षण पूर्ण हुआ। निकाले गए विवरणों को सीधे फ़ॉर्म में भरा जा सकता है।`)
+          : (parsed.product
+            ? `Document analyzed. Identified: ${parsed.product}. You can directly autofill forms using the buttons below.`
+            : `Inspection complete. You can autofill the extracted details directly into respective forms.`));
+      speakText(voiceNotice);
     };
 
-    reader.readAsDataURL(file);
+    if (cachedDataUrl) {
+      processData(cachedDataUrl);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => processData(e.target.result);
+      reader.readAsDataURL(file);
+    }
   }
 
   let isChatProcessing = false;
@@ -1106,6 +1093,16 @@ Provide an exhaustive 6-step technical roadmap tailored specifically to this pro
   async function handleSendMessage() {
     if (isChatProcessing) return;
     const text = input ? input.value.trim() : '';
+
+    // If pending attachment exists, process attachment with optional user query
+    if (pendingAttachment) {
+      const { file, dataUrl } = pendingAttachment;
+      clearAttachmentPreview();
+      if (input) input.value = '';
+      await handleImageUpload(file, text, dataUrl);
+      return;
+    }
+
     if (!text) return;
 
     isChatProcessing = true;
@@ -1118,13 +1115,24 @@ Provide an exhaustive 6-step technical roadmap tailored specifically to this pro
 
       showTypingIndicator();
 
-      // Query RAG Knowledge Base and Agentic Intent Engine
-      const ragResult = queryBISKnowledgeRAG(text);
+      const currentLang = getCurrentLanguage();
+      const langObj = SUPPORTED_LANGUAGES.find(l => l.code === currentLang) || { name: 'English', native: 'English', code: 'en' };
+
+      // Query Localized RAG Knowledge Base and Agentic Intent Engine
+      const ragResult = queryBISKnowledgeRAG(text, currentLang);
 
       let replyText = '';
       let isFromApi = false;
       const candidateModels = ['gemini-3.5-flash', 'gemini-3.1-flash-lite'];
       const userApiKey = GEMINI_API_KEY;
+
+      const languageInstruction = currentLang === 'en'
+        ? 'Respond in clear, professional English.'
+        : `CRITICAL MANDATORY LANGUAGE REQUIREMENT:
+The user has selected the portal language: ${langObj.name} (${langObj.native}, language code: "${currentLang}").
+You MUST formulate your ENTIRE response EXCLUSIVELY in ${langObj.name} (${langObj.native}) script.
+Do NOT reply in English. Do NOT mix English sentences unless quoting exact technical codes like "IS 10500", "CM/L-8400123456", or "HUID".
+All explanations, headings, steps, and bullet points MUST be in fluent, natural ${langObj.name} (${langObj.native}).`;
 
       for (const model of candidateModels) {
         if (isFromApi) break;
@@ -1144,14 +1152,14 @@ Provide an exhaustive 6-step technical roadmap tailored specifically to this pro
               system_instruction: {
                 parts: [
                   {
-                    text: `You are ManakBot AI Co-Pilot, the official RAG-grounded intelligent assistant for the Bureau of Indian Standards (BIS), Ministry of Consumer Affairs, Food & Public Distribution, Government of India.\n\nSTRICT INSTRUCTIONS:\n1. Provide clear, accurate, and comprehensive explanations regarding BIS services, ISI certification (CM/L), Hallmarking (HUID), e-Verification, LIMS testing labs, Indian Standards (IS Codes), consumer grievance redressal, and gold purity compensation rules under the BIS Act, 2016.\n2. Answer the user's exact query directly with concise bullet points or numbered lists where appropriate.`
+                    text: `You are ManakBot AI Co-Pilot, the official RAG-grounded intelligent assistant for the Bureau of Indian Standards (BIS), Ministry of Consumer Affairs, Food & Public Distribution, Government of India.\n\n${languageInstruction}\n\nSTRICT INSTRUCTIONS:\n1. Provide clear, accurate, and comprehensive explanations regarding BIS services, ISI certification (CM/L), Hallmarking (HUID), e-Verification, LIMS testing labs, Indian Standards (IS Codes), consumer grievance redressal, and gold purity compensation rules under the BIS Act, 2016.\n2. Answer the user's exact query directly with concise bullet points or numbered lists where appropriate.`
                   }
                 ]
               },
               contents: [
                 {
                   role: 'user',
-                  parts: [{ text: text }]
+                  parts: [{ text: currentLang === 'en' ? text : `[User Language: ${langObj.name} (${langObj.native})]\n${text}\n\n(Please reply strictly in ${langObj.name} / ${langObj.native})` }]
                 }
               ]
             })
@@ -1174,7 +1182,12 @@ Provide an exhaustive 6-step technical roadmap tailored specifically to this pro
 
       removeTypingIndicator();
 
-      const suggestions = ragResult?.suggestions || ['Verify Licence', 'Standards Catalog', 'Grievance Portal'];
+      const defaultSuggestions = [
+        t('chipVerifyIsi', currentLang),
+        t('chipPreviewStandard', currentLang),
+        t('chipGrievance', currentLang)
+      ];
+      const suggestions = ragResult?.suggestions || defaultSuggestions;
       const actions = ragResult?.actions || [];
       const agentTask = ragResult?.agentTask || null;
 
@@ -1185,19 +1198,15 @@ Provide an exhaustive 6-step technical roadmap tailored specifically to this pro
         appendMessage(ragResult.text, 'bot', suggestions, actions, agentTask);
         speakText(ragResult.text);
       } else {
-        let dynamicAnswer = `**Bureau of Indian Standards (BIS) Guidance**:\n\nRegarding **"${text}"**:\n\n`;
-        const qLower = text.toLowerCase();
-        if (qLower.includes('bis') || qLower.includes('is') || qLower.includes('bureau')) {
-          dynamicAnswer += `• **BIS (Bureau of Indian Standards)**: The National Standards Body of India established under the *BIS Act, 2016*. BIS formulates quality standards, issues ISI Mark licenses, manages Gold Hallmarking (HUID), and enforces mandatory Quality Control Orders (QCOs).\n• **IS (Indian Standard)**: Technical specification documents published by BIS defining safety, performance, and quality benchmarks (e.g., **IS 10500** for Drinking Water, **IS 456** for Concrete, **IS 4151** for Helmets).\n• **Summary**: **BIS** is the organization/authority, while **IS** is the standard specification code created by BIS.`;
-        } else {
-          dynamicAnswer += `• **BIS Core Functions**: BIS is responsible for Product Certification (ISI Mark), Gold & Silver Hallmarking (HUID), Compulsory Electronics Registration (CRS), and LIMS Laboratory Testing.\n• **Verification & Standards**: You can query the e-Verification suite or Standards Catalog using the shortcuts below.`;
-        }
-        appendMessage(dynamicAnswer, 'bot', suggestions, actions, agentTask);
-        speakText(dynamicAnswer);
+        const fallback = getLocalizedRAGResponse('general', { query: text }, currentLang);
+        appendMessage(fallback.text, 'bot', fallback.suggestions, fallback.actions, agentTask);
+        speakText(fallback.text);
       }
     } catch (criticalErr) {
       console.warn('ManakBot handling notice:', criticalErr);
-      appendMessage('I am ready for your query. What standard, licence, or grievance can I assist you with?', 'bot', ['Verify Licence', 'Standards Catalog', 'Grievance Portal']);
+      const currentLang = getCurrentLanguage();
+      const fallback = getLocalizedRAGResponse('general', { query: text }, currentLang);
+      appendMessage(fallback.text, 'bot', fallback.suggestions, fallback.actions);
     } finally {
       removeTypingIndicator();
       isChatProcessing = false;
@@ -1221,14 +1230,15 @@ Provide an exhaustive 6-step technical roadmap tailored specifically to this pro
 
   // Welcome Message
   function sendWelcomeMessage() {
-    const welcomeText = `Welcome to the official **ManakBot AI Co-Pilot** of the **Bureau of Indian Standards (BIS)**.\n\nI am your automated agent for standard operations:\n• **📷 Multimodal Vision OCR**: Upload any image or receipt to auto-fill forms\n• **Auto-fill consumer grievance complaints**\n• **Calculate statutory gold purity compensation**\n• **Verify ISI (CM/L), HUID & CRS licences**\n• **Search & preview Indian Standards (IS Codes)**\n• **Estimate laboratory testing fees & turnaround**\n\nSelect an action chip above, upload an image, or enter your prompt below to begin.`;
+    const currentLang = getCurrentLanguage();
+    const welcomeText = t('welcomeText', currentLang);
     
     const initialSuggestions = [
-      'File complaint for fake helmet',
-      'Calculate gold compensation (15g 22K vs 18K)',
-      'Verify ISI Licence CM/L-8400123456',
-      'Search IS 10500 Drinking Water',
-      'Calculate lab testing fees'
+      t('chipGrievance', currentLang),
+      t('chipGoldCalc', currentLang),
+      t('chipVerifyIsi', currentLang),
+      t('chipPreviewStandard', currentLang),
+      t('chipLabFee', currentLang)
     ];
 
     appendMessage(welcomeText, 'bot', initialSuggestions);
@@ -1321,75 +1331,73 @@ Provide an exhaustive 6-step technical roadmap tailored specifically to this pro
   }
 
   // ── 4. RAG KNOWLEDGE BASE & NEURAL SEARCH ENGINE ──
-  function queryBISKnowledgeRAG(query) {
-    const q = query.toLowerCase();
+  function queryBISKnowledgeRAG(query, lang = getCurrentLanguage()) {
+    const q = (query || '').toLowerCase();
     const extracted = extractUserDetailsFromPrompt(query);
 
-    // 0. Product Inspection, Authenticity Check & Legal IS Code Application Roadmap
-    if (q.includes('fake') || q.includes('genuine') || q.includes('is it real') || q.includes('apply for legal') || q.includes('legal is code') || q.includes('how to proceed with this product') || q.includes('inspect product') || q.includes('counterfeit check') || q.includes('check product') || q.includes('check if fake') || q.includes('product inspection')) {
-      return buildComprehensiveForensicFallback(query, query, query);
+    // 0. Product Inspection, Authenticity Check & Legal IS Code Guidance
+    if (
+      q.includes('inspect product') || q.includes('check if fake') || q.includes('counterfeit check') || q.includes('product inspection') ||
+      q.includes('பரிசோதனை') || q.includes('உண்மைத்தன்மை') || q.includes('போலி') || q.includes('जांच') || q.includes('नकली')
+    ) {
+      return getLocalizedRAGResponse('inspection', extracted, lang);
     }
 
     // 0. Comprehensive End-to-End Roadmaps & Workflows (From Scratch to Finish)
-    if (q.includes('roadmap') || q.includes('workflow') || q.includes('start to end') || q.includes('from scratch') || q.includes('how to start') || q.includes('guide') || q.includes('how does it work') || q.includes('steps to')) {
-      return {
-        text: `**Official Bureau of Indian Standards (BIS) Operational Roadmaps**:\n\nHere is your step-by-step guidance from start to finish based on your requirement:\n\n---\n\n### 🏭 **Roadmap 1: Manufacturer ISI Mark Certification (From Scratch)**\n1. **Standard Identification**: Search your product on our **Standards Catalog** (\`standards-search.html\`) to identify the applicable IS Code (e.g., IS 10500 for Water, IS 456 for Concrete, IS 4151 for Helmets) and check if covered under a mandatory Quality Control Order (QCO).\n2. **In-House Testing Setup**: Equip your factory according to the Scheme of Testing and Inspection (STI) with calibrated measuring gauges and qualified quality personnel.\n3. **Lab Testing Sample Benchmark**: Query our **LIMS Testing Directory** (\`lims-lab-directory.html\`) to locate an accredited BIS/NABL testing laboratory and calculate turnaround fees.\n4. **Application Submission**: File your online application via [Manakonline Portal](https://www.manakonline.in) with factory layout, test reports, and machinery details.\n5. **Factory Audit & Sample Seizure**: A designated BIS Technical Officer conducts on-site factory verification and draws independent market samples.\n6. **Grant of Licence (CM/L)**: Upon test compliance, BIS grants your 10-digit **CM/L-XXXXXXXXX** licence, publicly verifiable in real time.\n\n---\n\n### 🛡️ **Roadmap 2: Consumer Grievance & Substandard Product Redressal**\n1. **Authenticate Label**: Check the 10-digit CM/L or 6-digit HUID on the product via our **e-Verification Suite** (\`verify-licence.html\`).\n2. **Gather Evidence**: Take photos of the substandard item, tax invoice, and label markings.\n3. **File Grievance**: Complete our 4-step wizard on **Consumer Redressal** (\`grievance-redressal.html\`) to generate a unique 16-character tracking docket ID (e.g. \`BIS-GR-2026-1048\`).\n4. **Surveillance & Raid**: BIS Enforcement Officers execute market raids and seize non-compliant batches under Section 28 & 29 of the BIS Act, 2016.\n5. **Redressal & Refund**: Track the live investigation timeline until compensation or replacement is disbursed.\n\n---\n\n### 💍 **Roadmap 3: Gold Jewellery Purity Verification & 2x Compensation**\n1. **Inspect Mandatory Hallmarks**: Verify the 3 marks (BIS Logo, Purity e.g. 22K916, and 6-digit alphanumeric HUID) on **e-Verification**.\n2. **Independent Assaying**: Locate an accredited centre on **Assaying & Hallmarking Centres** (\`hallmarking-centres.html\`) for touchstone/XRF purity testing.\n3. **Calculate Statutory Compensation**: If purity fails, enter the weights on our **Gold Calculator** to compute **2x value shortfall penalty** plus ₹500 assay refund (Section 14 BIS Act 2016).\n4. **File Redressal Claim**: Submit the assay certificate for statutory recovery.`,
-        suggestions: ['Start Manufacturer Roadmap', 'File Consumer Grievance', 'Verify 10-digit CM/L', 'Gold 2x Calculator'],
-        actions: [
-          { text: 'Standards Catalog', url: 'standards-search.html' },
-          { text: 'e-Verification', url: 'verify-licence.html' },
-          { text: 'Consumer Grievance', url: 'grievance-redressal.html' },
-          { text: 'LIMS Lab Network', url: 'lims-lab-directory.html' }
-        ]
-      };
+    if (
+      q.includes('roadmap') || q.includes('workflow') || q.includes('start to end') || q.includes('from scratch') || q.includes('how to start') || q.includes('guide') || q.includes('how does it work') || q.includes('steps to') ||
+      q.includes('வழிமுறை') || q.includes('வழிகாட்ட') || q.includes('செயல்முறை') || q.includes('ரோட்மேப்') || q.includes('रोडमैप') || q.includes('मार्गदर्श')
+    ) {
+      if (q.includes('tour') || q.includes('services') || q.includes('கண்ணோட்டம்') || q.includes('சேவை') || q.includes('போர்டல்')) {
+        return getLocalizedRAGResponse('guide_tour', {}, lang);
+      }
+      return getLocalizedRAGResponse('roadmap', {}, lang);
     }
 
     // 1. Grievance / Complaint / Substandard Product
-    if (q.includes('complaint') || q.includes('grievance') || q.includes('fake') || q.includes('substandard') || q.includes('counterfeit') || q.includes('file') || q.includes('bad') || q.includes('defect')) {
-      let product = extracted.product || 'Two-Wheeler Protective Helmet';
-      let category = 'Misuse of ISI Mark (Substandard Product)';
-      let details = extracted.details || 'Product purchased with defective/counterfeit ISI mark. Material failed on normal usage.';
+    if (
+      q.includes('complaint') || q.includes('grievance') || q.includes('fake') || q.includes('substandard') || q.includes('counterfeit') || q.includes('file') || q.includes('bad') || q.includes('defect') ||
+      q.includes('புகார்') || q.includes('குறை') || q.includes('மோசடி') || q.includes('தரமற்ற') || q.includes('शिकायत') || q.includes('फरियाद')
+    ) {
+      let product = extracted.product;
+      let category;
+      let details = extracted.details;
 
-      if (q.includes('cement')) {
-        product = extracted.product || 'Portland Cement 43 Grade (IS 269)';
-        details = extracted.details || 'Cement bags received without proper ISI mark and batch number. Mortar failed to set within standard time.';
-      } else if (q.includes('water')) {
-        product = extracted.product || 'Packaged Drinking Water (IS 14543)';
-        details = extracted.details || 'Bottles supplied with duplicate ISI mark and pungent odour. Retesting requested.';
-      } else if (q.includes('gold') || q.includes('hallmark') || q.includes('jewel')) {
-        product = extracted.product || '22K Gold Jewellery (IS 1417)';
-        category = 'Gold Hallmarking Under-caratage (Purity Shortage)';
-        details = extracted.details || 'Jewellery sold as 22K (916) but independent assay report showed 18K purity shortfall.';
+      if (q.includes('cement') || q.includes('சிமெண்ட்') || q.includes('सीमेंट')) {
+        product = product || (lang === 'ta' ? 'போர்ட்லேண்ட் சிமெண்ட் 43 கிரேடு (IS 269)' : 'Portland Cement 43 Grade (IS 269)');
+        details = details || (lang === 'ta' ? 'சரியான ISI முத்திரை இல்லாமல் சிமெண்ட் மூட்டைகள் பெறப்பட்டன.' : 'Cement bags received without proper ISI mark and batch number.');
+      } else if (q.includes('water') || q.includes('தண்ணீர்') || q.includes('குடிநீர்') || q.includes('पानी')) {
+        product = product || (lang === 'ta' ? 'பாட்டிலடைக்கப்பட்ட குடிநீர் (IS 14543)' : 'Packaged Drinking Water (IS 14543)');
+        details = details || (lang === 'ta' ? 'போலி ISI முத்திரையுடன் துர்நாற்றமடிக்கும் பாட்டில்கள் வழங்கப்பட்டன.' : 'Bottles supplied with duplicate ISI mark and pungent odour.');
+      } else if (q.includes('gold') || q.includes('hallmark') || q.includes('jewel') || q.includes('தங்கம்') || q.includes('நகை') || q.includes('சோனா') || q.includes('स्वर्ण')) {
+        product = product || (lang === 'ta' ? '22K தங்க நகைகள் (IS 1417)' : '22K Gold Jewellery (IS 1417)');
+        category = lang === 'ta' ? 'தங்க ஹால்மார்க்கிங் காரட் குறைவு (தூய்மை பற்றாக்குறை)' : 'Gold Hallmarking Under-caratage (Purity Shortage)';
+        details = details || (lang === 'ta' ? '22K (916) என விற்கப்பட்ட நகை ஆய்வில் 18K என தெரியவந்தது.' : 'Jewellery sold as 22K (916) but independent assay report showed 18K purity shortfall.');
+      } else {
+        product = product || (lang === 'ta' ? 'இரண்டு சக்கர வாகன பாதுகாப்பு ஹெல்மெட் (IS 4151)' : 'Two-Wheeler Protective Helmet (IS 4151)');
+        category = lang === 'ta' ? 'போலி அல்லது தவறான ISI முத்திரை பயன்பாடு' : 'Misuse of ISI Mark (Substandard Product)';
+        details = details || (lang === 'ta' ? 'வாங்கிய பொருளில் தவறான ISI முத்திரை உள்ளது. சாதாரண பயன்பாட்டில் பழுதடைந்தது.' : 'Product purchased with defective/counterfeit ISI mark. Material failed on normal usage.');
       }
 
-      const prefillUrl = `grievance-redressal.html?name=${encodeURIComponent(extracted.name || '')}&phone=${encodeURIComponent(extracted.phone || '')}&email=${encodeURIComponent(extracted.email || '')}&state=${encodeURIComponent(extracted.state || '')}&product=${encodeURIComponent(product)}&category=${encodeURIComponent(category)}&details=${encodeURIComponent(details)}&seller=${encodeURIComponent(extracted.seller || '')}&price=${encodeURIComponent(extracted.price || '')}`;
+      const prefillUrl = `grievance-redressal.html?name=${encodeURIComponent(extracted.name || '')}&phone=${encodeURIComponent(extracted.phone || '')}&email=${encodeURIComponent(extracted.email || '')}&state=${encodeURIComponent(extracted.state || '')}&product=${encodeURIComponent(product)}&category=${encodeURIComponent(category)}&details=${encodeURIComponent(details)}&seller=${encodeURIComponent(extracted.seller || '')}&price=${encodeURIComponent(extracted.price || '1500')}`;
 
-      return {
-        text: `**BIS Consumer Grievance — Complaint Draft Prepared**:\n\nUnder **BIS Act, 2016 (Section 29)**, manufacturing or marketing goods with counterfeit ISI marks carries up to **2 years imprisonment and ₹2,00,000 penalty**.\n\nHere are the details captured from your prompt:\n• **Complainant**: ${extracted.name || 'Citizen'} (${extracted.phone || 'Phone not provided'})\n• **Product**: ${product}\n• **Category**: ${category}\n• **Seller**: ${extracted.seller || 'Vendor / Retailer'}\n• **Issue**: ${details}\n\nClick below to open the **Consumer Grievance Portal** with these details already pre-filled.`,
-        suggestions: ['Verify 10-digit CM/L', 'Gold 2x Calculator', 'Track Grievance Docket'],
-        actions: [
-          { text: '📝 Open Pre-Filled Grievance Form', url: prefillUrl },
-          { text: 'Verify Licence', url: 'verify-licence.html' }
-        ]
-      };
+      return getLocalizedRAGResponse('grievance', { ...extracted, product, category, details, prefillUrl }, lang);
     }
 
     // 2. Gold Hallmarking / Purity Compensation
-    if (q.includes('gold') || q.includes('carat') || q.includes('karat') || q.includes('compensation') || q.includes('huid') || q.includes('hallmark')) {
+    if (
+      q.includes('gold') || q.includes('carat') || q.includes('karat') || q.includes('compensation') || q.includes('huid') || q.includes('hallmark') ||
+      q.includes('தங்கம்') || q.includes('காரட்') || q.includes('ஹால்மார்க்') || q.includes('இழப்பீடு') || q.includes('தூய்மை') || q.includes('சோனா') || q.includes('स्वर्ण') || q.includes('मुआवजा')
+    ) {
       const goldUrl = `grievance-redressal.html?weight=${encodeURIComponent(extracted.weight || '15')}&claimed=${encodeURIComponent(extracted.claimed || '22')}&tested=${encodeURIComponent(extracted.tested || '18')}&rate=${encodeURIComponent(extracted.rate || '7200')}#gold-calc-section`;
-
-      return {
-        text: `**BIS Gold Hallmarking & Statutory Compensation**:\n\n• **Mandatory 3 Marks**: BIS Standard Logo, Purity (e.g. 22K916), and 6-digit alphanumeric **HUID**.\n• **Statutory Compensation (BIS Act 2016, Section 14)**: If hallmarked gold fails assay tests, the consumer is legally entitled to **2x the purity shortfall** plus refund of the ₹500 assaying fee.\n\nClick below to calculate your exact compensation or authenticate a 6-digit HUID:`,
-        suggestions: ['Verify 6-digit HUID', 'Locate Hallmarking Centres', 'File Gold Complaint'],
-        actions: [
-          { text: '⚖️ Open Pre-Filled Gold Calculator', url: goldUrl },
-          { text: 'Verify HUID on Portal', url: 'verify-licence.html?type=huid' }
-        ]
-      };
+      return getLocalizedRAGResponse('gold', { ...extracted, goldUrl }, lang);
     }
 
     // 3. Licence Verification (ISI, HUID, CRS, FMCS)
-    if (q.includes('verify') || q.includes('cml') || q.includes('licence') || q.includes('license') || q.includes('crs') || q.includes('fmcs') || /\bisi\b/i.test(q) || q.includes('authentic')) {
+    if (
+      q.includes('verify') || q.includes('cml') || q.includes('licence') || q.includes('license') || q.includes('crs') || q.includes('fmcs') || /\bisi\b/i.test(q) || q.includes('authentic') ||
+      q.includes('சரிபார்') || q.includes('உரிமம்') || q.includes('சத்தியாபனம்') || q.includes('सत्यापित') || q.includes('जांचें')
+    ) {
       let type = 'isi';
       let code = 'CM/L-8400123456';
       if (q.includes('crs') || q.includes('electronic') || q.includes('r-')) {
@@ -1398,55 +1406,40 @@ Provide an exhaustive 6-step technical roadmap tailored specifically to this pro
       } else if (q.includes('fmcs') || q.includes('foreign')) {
         type = 'fmcs';
         code = 'CM/L-4000123456';
-      } else if (q.includes('huid')) {
+      } else if (q.includes('huid') || /[a-z0-9]{6}/i.test(q)) {
+        const huidMatch = q.match(/\b([A-Z0-9]{6})\b/i);
         type = 'huid';
-        code = 'AB1234';
+        code = huidMatch ? huidMatch[1].toUpperCase() : 'AB1234';
       }
 
       const verifyUrl = `verify-licence.html?type=${encodeURIComponent(type)}&code=${encodeURIComponent(code)}`;
-
-      return {
-        text: `**BIS e-Verification Registry**:\n\n• **ISI Mark (CM/L)**: 10-digit licence format e.g. \`CM/L-8400123456\`\n• **Gold Hallmark (HUID)**: 6-digit alphanumeric code e.g. \`AB1234\`\n• **CRS Electronics**: 8-digit R-number e.g. \`R-41001234\`\n\nClick below to instantly verify **${code}** in the live national database:`,
-        suggestions: [`Verify CM/L-8400123456 (Water)`, `Verify CM/L-6300456789 (Helmet)`, `Verify R-41001234 (CRS)`],
-        actions: [
-          { text: `🔍 Verify ${code} on Portal`, url: verifyUrl },
-          { text: 'e-Verification Suite', url: 'verify-licence.html' }
-        ]
-      };
+      return getLocalizedRAGResponse('verify', { type, code, verifyUrl }, lang);
     }
 
     // 4. Indian Standards Search & Document Clause Preview
-    const hasIsCodeMatch = /\bis\s*\d+\b/i.test(q) || q.includes('standard') || q.includes('is code') || q.includes('qco') || q.includes('specification');
+    const hasIsCodeMatch = /\bis\s*\d+\b/i.test(q) || q.includes('standard') || q.includes('is code') || q.includes('qco') || q.includes('specification') ||
+      q.includes('தரநிலை') || q.includes('விவரக்குறிப்பு') || q.includes('மானக்') || q.includes('मानक');
     if (hasIsCodeMatch) {
       let isCode = 'IS 10500';
-      if (q.includes('456') || q.includes('concrete')) isCode = 'IS 456';
-      else if (q.includes('4151') || q.includes('helmet')) isCode = 'IS 4151';
-      else if (q.includes('1417') || q.includes('gold')) isCode = 'IS 1417';
+      if (q.includes('456') || q.includes('concrete') || q.includes('கான்கிரீட்')) isCode = 'IS 456';
+      else if (q.includes('4151') || q.includes('helmet') || q.includes('ஹெல்மெட்')) isCode = 'IS 4151';
+      else if (q.includes('1417') || q.includes('gold') || q.includes('தங்கம்')) isCode = 'IS 1417';
       else if (q.includes('1293') || q.includes('plug') || q.includes('socket')) isCode = 'IS 1293';
-      else if (q.includes('269') || q.includes('cement')) isCode = 'IS 269';
+      else if (q.includes('269') || q.includes('cement') || q.includes('சிமெண்ட்')) isCode = 'IS 269';
 
       const stdUrl = `standards-search.html?q=${encodeURIComponent(isCode)}`;
-
-      return {
-        text: `**Indian Standards Catalog (IS Codes)**:\n\nStandard **${isCode}** specifies mandatory safety requirements and quality control testing procedures enforced under national Quality Control Orders (QCOs).\n\nClick below to search the catalog and view the full standard details:`,
-        suggestions: [`Search ${isCode}`, 'Search IS 456 (Concrete)', 'Search IS 10500 (Water)'],
-        actions: [
-          { text: `📖 Search & Preview ${isCode}`, url: stdUrl },
-          { text: 'Browse Standards Catalog', url: 'standards-search.html' }
-        ]
-      };
+      return getLocalizedRAGResponse('standards', { isCode, stdUrl }, lang);
     }
 
     // 5. LIMS Testing Labs & Fee Estimator
-    if (q.includes('lab') || q.includes('lims') || q.includes('test') || q.includes('fee') || q.includes('tat') || q.includes('sample') || q.includes('price')) {
-      return {
-        text: `**RAG Knowledge Match — BIS LIMS Laboratory Network**:\n\n• **Apex Regional Labs**: Central Lab (Sahibabad), Western (Mumbai), Southern (Chennai), Eastern (Kolkata), Northern (Chandigarh).\n• **Partner Labs**: 300+ NABL accredited testing facilities.\n\nI can calculate the estimated testing fee and turnaround time (TAT) for your product sample.`,
-        suggestions: ['Estimate Water Testing Fee', 'Estimate Cement Testing Fee', 'Estimate Electronics Testing Fee'],
-        actions: [{ text: 'BIS LIMS Lab Directory', url: 'lims-lab-directory.html' }]
-      };
+    if (
+      q.includes('lab') || q.includes('lims') || q.includes('test') || q.includes('fee') || q.includes('tat') || q.includes('sample') || q.includes('price') ||
+      q.includes('ஆய்வகம்') || q.includes('கட்டணம்') || q.includes('மாதிரி') || q.includes('சோதனை') || q.includes('प्रयोगशाला') || q.includes('शुल्क')
+    ) {
+      return getLocalizedRAGResponse('lims', {}, lang);
     }
 
-    // Unindexed general query -> return null to allow dynamic AI / offline synthesis
+    // Unindexed general query -> return null to allow dynamic AI / localized synthesis
     return null;
   }
 
@@ -1458,10 +1451,13 @@ Provide an exhaustive 6-step technical roadmap tailored specifically to this pro
     const msgDiv = document.createElement('div');
     msgDiv.className = `chat-msg ${sender}`;
 
-    const formattedText = text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/\n/g, '<br>');
+    let formattedText = text;
+    if (typeof text === 'string' && !text.trim().startsWith('<div')) {
+      formattedText = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+    }
 
     let extraHtml = '';
 
@@ -1503,15 +1499,21 @@ Provide an exhaustive 6-step technical roadmap tailored specifically to this pro
         }
       });
     });
+
+    return msgDiv;
   }
 
   function showTypingIndicator() {
+    const currentLang = getCurrentLanguage();
+    const typingText = currentLang === 'ta'
+      ? 'மணக்பாட் பதிலைத் தயாரிக்கிறது...'
+      : (currentLang === 'hi' ? 'मानक-बॉट उत्तर तैयार कर रहा है...' : 'ManakBot Co-Pilot preparing response...');
     const indicator = document.createElement('div');
     indicator.className = 'chat-msg bot typing-indicator';
     indicator.innerHTML = `
       <div class="chat-msg-avatar">${BIS_LOGO_ICON}</div>
       <div class="chat-msg-bubble" style="padding: 8px 12px; font-style: italic; color: #64748b; font-size: 12px;">
-        <span>ManakBot Co-Pilot preparing response...</span>
+        <span>${typingText}</span>
       </div>
     `;
     chatBody.appendChild(indicator);
