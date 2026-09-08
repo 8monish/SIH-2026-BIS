@@ -70,16 +70,18 @@ const TRANSLATIONS = {
     ocrDate: 'Document / Purchase Date',
     ocrRegistryStatus: 'BIS Registry Verification Verdict',
     ocrNotDetected: 'Not detected in file',
-    ocrActionsHeading: '🚀 Direct Form Actions & Instant Autofill',
+    ocrActionsHeading: 'Extracted Details — Use to Fill Any Form',
     
-    // Form Autofill Action Buttons
-    btnAutofillGrievance: '📝 Autofill Consumer Grievance Form',
-    btnVerifyLicence: '🔍 Verify Extracted Licence on Portal',
-    btnSearchStandard: '📖 Search Extracted IS Standard',
-    btnUploadBackend: '💾 Save Document to BIS System',
+    // Copy & Portal Action Buttons
+    btnCopyAll: 'Copy All Extracted Details',
+    btnGrievancePortal: 'Grievance Form',
+    btnVerifyPortal: 'Verify Licence',
+    btnStandardsPortal: 'IS Standards',
+    btnHallmarkingPortal: 'Hallmarking',
+    ocrPortalLinksHeading: 'Go to Portal',
     
     // Toast & Status Messages
-    autofillSuccess: 'Form successfully populated with extracted document details!',
+    autofillSuccess: 'Extracted details copied! Paste them into the relevant form fields.',
     ocrError: 'Could not detect readable text in image. Please try a clearer picture.',
     uploadSuccess: 'Document registered and saved to BIS Compliance Database!',
 
@@ -140,14 +142,16 @@ const TRANSLATIONS = {
     ocrDate: 'दस्तावेज़ / खरीद तिथि',
     ocrRegistryStatus: 'बीआईएस रजिस्ट्री सत्यापन स्थिति',
     ocrNotDetected: 'फ़ाइल में नहीं पाया गया',
-    ocrActionsHeading: '🚀 सीधे फ़ॉर्म ऑटोफ़िल विकल्प',
+    ocrActionsHeading: 'निकाले गए विवरण — किसी भी फ़ॉर्म को भरने के लिए उपयोग करें',
     
-    btnAutofillGrievance: '📝 उपभोक्ता शिकायत फ़ॉर्म में भरें',
-    btnVerifyLicence: '🔍 पोर्टल पर लाइसेंस सत्यापित करें',
-    btnSearchStandard: '📖 संबंधित भारतीय मानक खोजें',
-    btnUploadBackend: '💾 दस्तावेज़ को बीआईएस सिस्टम में सहेजें',
+    btnCopyAll: 'सभी विवरण कॉपी करें',
+    btnGrievancePortal: 'शिकायत फ़ॉर्म',
+    btnVerifyPortal: 'लाइसेंस सत्यापित करें',
+    btnStandardsPortal: 'IS मानक',
+    btnHallmarkingPortal: 'हॉलमार्किंग',
+    ocrPortalLinksHeading: 'पोर्टल पर जाएं',
     
-    autofillSuccess: 'दस्तावेज़ से प्राप्त विवरण फ़ॉर्म में सफलतापूर्वक भर दिए गए हैं!',
+    autofillSuccess: 'विवरण कॉपी हो गए! उन्हें संबंधित फ़ॉर्म में पेस्ट करें।',
     ocrError: 'छवि में पठनीय पाठ नहीं मिल सका। कृपया अधिक स्पष्ट छवि अपलोड करें।',
     uploadSuccess: 'दस्तावेज़ बीआईएस अनुपालन डेटाबेस में सुरक्षित सहेज लिया गया!',
 
@@ -208,14 +212,16 @@ const TRANSLATIONS = {
     ocrDate: 'தேதி',
     ocrRegistryStatus: 'BIS பதிவு சரிபார்ப்பு',
     ocrNotDetected: 'கோப்பில் கண்டறியப்படவில்லை',
-    ocrActionsHeading: '🚀 படிவத்தில் நேரடியாக நிரப்பவும்',
+    ocrActionsHeading: 'பிரித்தெடுக்கப்பட்ட விவரங்கள் — எந்த படிவத்தையும் நிரப்ப பயன்படுத்தவும்',
     
-    btnAutofillGrievance: '📝 நுகர்வோர் புகார் படிவத்தை நிரப்பவும்',
-    btnVerifyLicence: '🔍 உரிமத்தை சரிபார்க்கவும்',
-    btnSearchStandard: '📖 தரநிலையை தேடவும்',
-    btnUploadBackend: '💾 BIS சேமிப்பகத்தில் சேமிக்கவும்',
+    btnCopyAll: 'அனைத்து விவரங்களையும் நகலெடுக்கவும்',
+    btnGrievancePortal: 'புகார் படிவம்',
+    btnVerifyPortal: 'உரிம சரிபார்ப்பு',
+    btnStandardsPortal: 'IS தரநிலைகள்',
+    btnHallmarkingPortal: 'ஹால்மார்க்கிங்',
+    ocrPortalLinksHeading: 'போர்ட்டலுக்கு செல்லவும்',
     
-    autofillSuccess: 'படிவம் வெற்றிகரமாக தானாக நிரப்பப்பட்டது!',
+    autofillSuccess: 'விவரங்கள் நகலெடுக்கப்பட்டன! அவற்றை படிவ புலங்களில் ஒட்டவும்.',
     ocrError: 'படத்திலிருந்து உரையைப் படிக்க முடியவில்லை. தெளிவான படத்தை பதிவேற்றவும்.',
     uploadSuccess: 'ஆவணம் வெற்றிகரமாக சேமிக்கப்பட்டது!',
 
@@ -276,14 +282,16 @@ const TRANSLATIONS = {
     ocrDate: 'తేదీ',
     ocrRegistryStatus: 'BIS రిజిస్ట్రీ స్థితి',
     ocrNotDetected: 'కనుగొనబడలేదు',
-    ocrActionsHeading: '🚀 ఫారమ్‌లలో నేరుగా నింపే చర్యలు',
+    ocrActionsHeading: 'సేకరించిన వివరాలు — ఏ ఫారమ్‌లోనైనా నింపడానికి ఉపయోగించండి',
     
-    btnAutofillGrievance: '📝 ఫిర్యాదు ఫారమ్‌ను నింపండి',
-    btnVerifyLicence: '🔍 లైసెన్స్‌ను ధృవీకరించండి',
-    btnSearchStandard: '📖 ప్రమాణాన్ని శోధించండి',
-    btnUploadBackend: '💾 BIS సిస్టమ్‌లో భద్రపరచండి',
+    btnCopyAll: 'అన్ని వివరాలను కాపీ చేయండి',
+    btnGrievancePortal: 'ఫిర్యాదు ఫారమ్',
+    btnVerifyPortal: 'లైసెన్స్ ధృవీకరణ',
+    btnStandardsPortal: 'IS ప్రమాణాలు',
+    btnHallmarkingPortal: 'హాల్‌మార్కింగ్',
+    ocrPortalLinksHeading: 'పోర్టల్‌కు వెళ్ళండి',
     
-    autofillSuccess: 'ఫారమ్ విజయవంతంగా ఆటో-ఫిల్ చేయబడింది!',
+    autofillSuccess: 'వివరాలు కాపీ చేయబడ్డాయి! వాటిని సంబంధిత ఫారమ్ ఫీల్డ్‌లలో పేస్ట్ చేయండి.',
     ocrError: 'చిత్రంలో స్పష్టమైన వచనం కనుగొనబడలేదు.',
     uploadSuccess: 'డాక్యుమెంట్ సేవ్ చేయబడింది!',
 
@@ -344,14 +352,16 @@ const TRANSLATIONS = {
     ocrDate: 'তারিখ',
     ocrRegistryStatus: 'BIS রেজিস্ট্রি যাচাই',
     ocrNotDetected: 'নথিতে পাওয়া যায়নি',
-    ocrActionsHeading: '🚀 সরাসরি ফর্মে পূরণ করার বিকল্প',
+    ocrActionsHeading: 'বের করা তথ্য — যেকোনো ফর্ম পূরণে ব্যবহার করুন',
     
-    btnAutofillGrievance: '📝 ভোক্তা অভিযোগ ফর্মে ভরুন',
-    btnVerifyLicence: '🔍 লাইসেন্স যাচাই করুন',
-    btnSearchStandard: '📖 স্ট্যান্ডার্ড খুঁজুন',
-    btnUploadBackend: '💾 নথিপত্র সেভ করুন',
+    btnCopyAll: 'সমস্ত তথ্য কপি করুন',
+    btnGrievancePortal: 'অভিযোগ ফর্ম',
+    btnVerifyPortal: 'লাইসেন্স যাচাই',
+    btnStandardsPortal: 'IS মানদণ্ড',
+    btnHallmarkingPortal: 'হলমার্কিং',
+    ocrPortalLinksHeading: 'পোর্টালে যান',
     
-    autofillSuccess: 'ফর্মটি সফলভাবে পূরণ করা হয়েছে!',
+    autofillSuccess: 'তথ্য কপি হয়েছে! সংশ্লিষ্ট ফর্ম ফিল্ডে পেস্ট করুন।',
     ocrError: 'ছবিতে স্পষ্ট টেক্সট পাওয়া যায়নি।',
     uploadSuccess: 'নথি সফলভাবে সংরক্ষিত হয়েছে!',
 
@@ -412,14 +422,16 @@ const TRANSLATIONS = {
     ocrDate: 'तारीख',
     ocrRegistryStatus: 'BIS नोंदणी स्थिती',
     ocrNotDetected: 'आढळले नाही',
-    ocrActionsHeading: '🚀 थेट फॉर्म भरण्याचे पर्याय',
+    ocrActionsHeading: 'काढलेले तपशील — कोणताही फॉर्म भरण्यासाठी वापरा',
     
-    btnAutofillGrievance: '📝 ग्राहक तक्रार फॉर्म भरा',
-    btnVerifyLicence: '🔍 परवाना सत्यापित करा',
-    btnSearchStandard: '📖 मानक शोधा',
-    btnUploadBackend: '💾 बीआयएस प्रणालीत जतन करा',
+    btnCopyAll: 'सर्व तपशील कॉपी करा',
+    btnGrievancePortal: 'तक्रार फॉर्म',
+    btnVerifyPortal: 'परवाना सत्यापन',
+    btnStandardsPortal: 'IS मानके',
+    btnHallmarkingPortal: 'हॉलमार्किंग',
+    ocrPortalLinksHeading: 'पोर्टलवर जा',
     
-    autofillSuccess: 'फॉर्म यशस्वीरीत्या भरला गेला आहे!',
+    autofillSuccess: 'तपशील कॉपी झाले! ते संबंधित फॉर्म फील्डमध्ये पेस्ट करा.',
     ocrError: 'प्रतिमेत मजकूर आढळला नाही.',
     uploadSuccess: 'दस्तऐवज सुरक्षित जतन केला!',
 
@@ -480,14 +492,16 @@ const TRANSLATIONS = {
     ocrDate: 'તારીખ',
     ocrRegistryStatus: 'BIS રજીસ્ટ્રી સ્થિતિ',
     ocrNotDetected: 'ફાઇલમાં મળ્યું નથી',
-    ocrActionsHeading: '🚀 સીધા ફોર્મ ભરવાના વિકલ્પો',
+    ocrActionsHeading: 'કાઢેલ વિગતો — કોઈ પણ ફોર્મ ભરવા ઉપયોગ કરો',
     
-    btnAutofillGrievance: '📝 ફરિયાદ ફોર્મમાં ભરો',
-    btnVerifyLicence: '🔍 લાઇસન્સ ચકાસો',
-    btnSearchStandard: '📖 સ્ટાન્ડર્ડ શોધો',
-    btnUploadBackend: '💾 BIS ડેટાબેઝમાં સાચવો',
+    btnCopyAll: 'બધી વિગતો કૉપિ કરો',
+    btnGrievancePortal: 'ફરિયાદ ફોર્મ',
+    btnVerifyPortal: 'લાઇસન્સ ચકાસો',
+    btnStandardsPortal: 'IS ધોરણ',
+    btnHallmarkingPortal: 'હૉલમાર્કિંગ',
+    ocrPortalLinksHeading: 'પોર્ટલ પર જાઓ',
     
-    autofillSuccess: 'ફોર્મ સફળતાપૂર્વક ભરાઈ ગયું છે!',
+    autofillSuccess: 'વિગતો કૉપિ થઈ! સંબંધિત ફોર્મ ફીલ્ડ્સમાં પેસ્ટ કરો.',
     ocrError: 'ચિત્રમાં લખાણ વાંચી શકાયું નથી.',
     uploadSuccess: 'દસ્તાવેજ સફળતાપૂર્વક સાચવવામાં આવ્યો!',
 
@@ -548,14 +562,16 @@ const TRANSLATIONS = {
     ocrDate: 'ದಿನಾಂಕ',
     ocrRegistryStatus: 'BIS ನೋಂದಣಿ ಸ್ಥಿತಿ',
     ocrNotDetected: 'ಕಂಡುಬಂದಿಲ್ಲ',
-    ocrActionsHeading: '🚀 ನೇರ ನಮೂನೆ ಭರ್ತಿ ಆಯ್ಕೆಗಳು',
+    ocrActionsHeading: 'ಹೊರತೆಗೆದ ವಿವರಗಳು — ಯಾವುದೇ ನಮೂನೆ ಭರ್ತಿ ಮಾಡಲು ಬಳಸಿ',
     
-    btnAutofillGrievance: '📝 ಗ್ರಾಹಕ ದೂರು ನಮೂನೆ ಭರ್ತಿ ಮಾಡಿ',
-    btnVerifyLicence: '🔍 ಪರವಾನಗಿ ಪರಿಶೀಲಿಸಿ',
-    btnSearchStandard: '📖 ಮಾನದಂಡ ಹುಡುಕಿ',
-    btnUploadBackend: '💾 BIS ಸಿಸ್ಟಂನಲ್ಲಿ ಉಳಿಸಿ',
+    btnCopyAll: 'ಎಲ್ಲಾ ವಿವರಗಳನ್ನು ನಕಲು ಮಾಡಿ',
+    btnGrievancePortal: 'ದೂರು ನಮೂನೆ',
+    btnVerifyPortal: 'ಪರವಾನಗಿ ಪರಿಶೀಲನೆ',
+    btnStandardsPortal: 'IS ಮಾನದಂಡ',
+    btnHallmarkingPortal: 'ಹಾಲ್‌ಮಾರ್ಕಿಂಗ್',
+    ocrPortalLinksHeading: 'ಪೋರ್ಟಲ್‌ಗೆ ಹೋಗಿ',
     
-    autofillSuccess: 'ನಮೂನೆಯನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಭರ್ತಿ ಮಾಡಲಾಗಿದೆ!',
+    autofillSuccess: 'ವಿವರಗಳು ನಕಲಾಗಿದೆ! ಸಂಬಂಧಿತ ನಮೂನೆ ಕ್ಷೇತ್ರಗಳಲ್ಲಿ ಅಂಟಿಸಿ.',
     ocrError: 'ಚಿತ್ರದಲ್ಲಿ ಸ್ಪಷ್ಟ ಪಠ್ಯ ಕಂಡುಬಂದಿಲ್ಲ.',
     uploadSuccess: 'ದಾಖಲೆ ಯಶಸ್ವಿಯಾಗಿ ಉಳಿಸಲಾಗಿದೆ!',
 
@@ -1084,11 +1100,11 @@ export function getLocalizedRAGResponse(intent, data = {}, langCode = currentLan
   // General fallback
   let text = '';
   if (lang === 'ta') {
-    text = `**இந்திய தரநிலைகள் பணியகம் (BIS) வழிகாட்டுதல்**:\n\n**"${data.query || 'BIS'}"** தொடர்பான தகவல்:\n\n• **BIS முதன்மை பணிகள்**: ISI முத்திரை சான்றிதழ், தங்க ஹால்மார்க்கிங் (HUID), மின்னணு பதிவு (CRS), மற்றும் LIMS ஆய்வக சோதனை ஆகியவற்றை BIS நிர்வகிக்கிறது.\n• **சரிபார்ப்பு மற்றும் தரநிலைகள்**: கீழேயுள்ள இணைப்புகள் மூலம் உரிமங்களை சரிபார்க்கலாம் அல்லது தரநிலைகளை தேடலாம்.`;
+    text = `💡 **இந்திய தரநிலைகள் பணியகம் (BIS) உதவிக் கையேடு**:\n\nஉங்கள் கேள்வி தொடர்பான அதிகாரப்பூர்வ BIS வழிகாட்டுதல்கள்:\n\n1. **தயாரிப்பு சான்றிதழ் பெற**: உங்கள் தயாரிப்புக்கான IS குறியீட்டை தேடி, உள்-ஆய்வக பரிசோதனை வசதியை நிறுவி, Manakonline தளத்தில் Form-I மூலம் விண்ணப்பிக்கவும்.\n2. **உரிமம் மற்றும் ஹால்மார்க் சரிபார்க்க**: 10-இலக்க CM/L எண் அல்லது 6-இலக்க HUID குறியீட்டை எங்கள் மின்-சரிபார்ப்பு தளத்தில் உள்ளிடவும்.\n3. **நுகர்வோர் குறைதீர்ப்பு**: போலி அல்லது தரமற்ற ISI தயாரிப்புகள் மீது புகார் செய்ய குறைதீர்ப்பு போர்ட்டலைப் பயன்படுத்தவும்.\n\nகீழேயுள்ள விரைவு இணைப்புகளைப் பயன்படுத்தலாம் அல்லது உங்கள் குறிப்பிட்ட தயாரிப்பின் பெயரை உள்ளிடவும்.`;
   } else if (lang === 'hi') {
-    text = `**भारतीय मानक ब्यूरो (BIS) मार्गदर्शन**:\n\n**"${data.query || 'BIS'}"** के संबंध में:\n\n• **बीआईएस मुख्य कार्य**: बीआईएस उत्पाद प्रमाणन (आईएसआई मार्क), स्वर्ण हॉलमार्किंग (HUID), इलेक्ट्रॉनिक्स पंजीकरण (CRS) और LIMS प्रयोगशाला परीक्षण का प्रबंधन करता है।\n• **सत्यापन एवं मानक**: आप नीचे दिए गए शॉर्टकट का उपयोग करके लाइसेंस सत्यापित कर सकते हैं या मानक खोज सकते हैं।`;
+    text = `💡 **भारतीय मानक ब्यूरो (BIS) मार्गदर्शिका**:\n\nआपके प्रश्न के संदर्भ में आधिकारिक बीआईएस मार्गदर्शन:\n\n1. **उत्पाद प्रमाणन हेतु**: उत्पाद का आईएस कोड खोजें, इन-हाउस लैब स्थापित करें और Manakonline पर आवेदन करें।\n2. **लाइसेंस एवं हॉलमार्क सत्यापन**: 10-अंकीय CM/L या 6-अंकीय HUID को ई-सत्यापन में जांचें।\n3. **उपभोक्ता शिकायत**: घटिया वस्तु के विरुद्ध शिकायत दर्ज करें।`;
   } else {
-    text = `**Bureau of Indian Standards (BIS) Guidance**:\n\nRegarding **"${data.query || 'BIS'}"**:\n\n• **BIS Core Functions**: BIS is responsible for Product Certification (ISI Mark), Gold & Silver Hallmarking (HUID), Compulsory Electronics Registration (CRS), and LIMS Laboratory Testing.\n• **Verification & Standards**: You can query the e-Verification suite or Standards Catalog using the shortcuts below.`;
+    text = `💡 **Bureau of Indian Standards (BIS) Guidance Guide**:\n\nOfficial statutory pathways to assist you:\n\n1. **Product Certification (ISI Mark)**: Identify your product's IS Code, establish in-house testing facilities (STI), and file Form-I on Manakonline.\n2. **e-Verification & Authenticity**: Verify 10-digit CM/L numbers or 6-digit gold HUIDs in our e-Verification suite.\n3. **Consumer Grievance**: File official complaints regarding substandard or counterfeit ISI goods.\n\nUse the quick actions below or specify your product name for immediate details.`;
   }
 
   return {

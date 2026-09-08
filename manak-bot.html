@@ -231,15 +231,36 @@
         <!-- Right 1 Col: Quick Prompts & Settings -->
         <div>
           
-          <!-- Live Gemini API Bridge Card -->
+          <!-- Live Gemini AI Bridge Card -->
           <div class="card p-5 bg-white border border-gray-200 shadow-sm mb-6" style="border-top: 3px solid var(--color-accent);">
             <div class="flex items-center justify-between mb-2">
               <h4 class="text-xs font-bold text-primary uppercase tracking-wider">Live Gemini AI Bridge</h4>
-              <span class="badge badge-success text-xs">READY</span>
+              <span class="badge badge-success text-xs" id="studio-gemini-status-badge">READY</span>
             </div>
             <p class="text-xs text-muted mb-3">Enter a Google Gemini API Key for live multimodal reasoning, or leave blank to use the high-fidelity offline BIS domain engine.</p>
             <input type="password" id="gemini-api-key-input" class="form-control text-xs mb-2" placeholder="Optional: Paste AI Studio Gemini Key">
-            <span class="text-xs text-muted" style="font-size: 11px;">Keys remain client-side and are never stored.</span>
+            <div class="mb-2">
+              <label class="text-xs font-bold text-muted block mb-1">Select Gemini Model:</label>
+              <select id="studio-gemini-model-select" class="form-control text-xs">
+                <optgroup label="✨ Gemini 3.x Series (Latest)">
+                  <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (Latest Flagship - Ultra Fast)</option>
+                  <option value="gemini-3.5-flash">Gemini 3.5 Flash (Advanced Reasoning)</option>
+                  <option value="gemini-3.0-flash">Gemini 3.0 Flash (Next-Gen Series)</option>
+                </optgroup>
+                <optgroup label="⚡ Gemini 2.x & 1.5 Series">
+                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (High-Throughput)</option>
+                  <option value="gemini-2.0-flash">Gemini 2.0 Flash (Production Flagship)</option>
+                  <option value="gemini-1.5-flash">Gemini 1.5 Flash (Standard - Fast & Generous Free Tier)</option>
+                  <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Domain Reasoning)</option>
+                </optgroup>
+                <option value="custom">✏️ Enter Custom Model ID...</option>
+              </select>
+            </div>
+            <div id="studio-custom-model-container" class="mb-2" style="display: none;">
+              <label class="text-xs font-bold text-muted block mb-1">Custom Model Identifier:</label>
+              <input type="text" id="studio-custom-model-input" class="form-control text-xs" placeholder="e.g. gemini-3.8-pro, gemini-experimental">
+            </div>
+            <span class="text-xs text-muted" style="font-size: 11px;">Keys & model selection remain client-side in your browser.</span>
           </div>
 
           <!-- Quick Starter Prompts -->

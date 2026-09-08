@@ -10,9 +10,18 @@
  */
 
 import { performClientOCR, parseExtractedText, generateAccurateInspectionReport } from './ocr-engine.js';
-import { executeDirectFormAction, showAutofillToast, fillGrievanceForm, fillVerificationForm, fillStandardsForm } from './form-autofill.js';
+import { showAutofillToast } from './form-autofill.js';
 import { SUPPORTED_LANGUAGES, getCurrentLanguage, setLanguage, t, getVoiceLanguage, getLocalizedRAGResponse } from './i18n.js';
 import { resolveExactBISQuery } from './bis-knowledge-engine.js';
+import { 
+  getActiveGeminiApiKey, 
+  saveActiveGeminiApiKey, 
+  getActiveGeminiModel, 
+  saveActiveGeminiModel, 
+  AVAILABLE_GEMINI_MODELS, 
+  testGeminiConnection, 
+  callLiveGeminiAPI 
+} from './gemini-bridge.js';
 
 const BIS_LOGO_PNG = `<img src="assets/images/bis-logo.png" alt="BIS Logo" style="height: 26px; width: auto; max-width: 100%; object-fit: contain; vertical-align: middle; background: #ffffff; padding: 2px 4px; border-radius: 4px;">`;
 const BIS_LOGO_ICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle;"><path d="M12 2L2 20H22L12 2Z" fill="#003082"/><path d="M12 7L6 17H18L12 7Z" fill="#FFFFFF"/><circle cx="12" cy="13" r="2.5" fill="#E11D48"/></svg>`;
@@ -55,6 +64,10 @@ function injectChatbotDOM() {
           <select class="chatbot-lang-select" aria-label="Select Language" title="Change Language" style="background: rgba(255,255,255,0.18); color:#ffffff; border:1px solid rgba(255,255,255,0.35); border-radius:6px; font-size:11px; font-weight:700; padding:3px 6px; outline:none; cursor:pointer;">
             ${SUPPORTED_LANGUAGES.map(l => `<option value="${l.code}" ${l.code === currentLang ? 'selected' : ''} style="color:#000000; background:#ffffff;">${l.native} (${l.code.toUpperCase()})</option>`).join('')}
           </select>
+          <button class="chatbot-btn chatbot-api-btn" title="Google Gemini AI Settings" aria-label="Configure Gemini AI">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+            <span class="api-status-dot"></span>
+          </button>
           <button class="chatbot-btn chatbot-voice-toggle" title="Toggle Voice Readout (TTS)" aria-label="Toggle Voice Readout">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
           </button>
@@ -70,6 +83,60 @@ function injectChatbotDOM() {
           <button class="chatbot-btn chatbot-close" title="Close Sidebar" aria-label="Close Sidebar">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
+        </div>
+      </div>
+
+      <!-- Google Gemini AI Settings Modal -->
+      <div class="chatbot-api-modal" style="display:none;">
+        <div class="api-modal-header">
+          <div class="api-modal-title">
+            <span>✨ Google Gemini AI Configuration</span>
+            <span class="api-modal-badge badge-active">Live LLM</span>
+          </div>
+          <button type="button" class="api-modal-close" aria-label="Close Settings">✕</button>
+        </div>
+        <div class="api-modal-content">
+          <p class="api-modal-desc">Configure your Google Gemini API Key for live AI responses. Keys are encrypted client-side in your browser.</p>
+          
+          <div class="api-field-group">
+            <label class="api-field-label">Google Gemini API Key:</label>
+            <div class="api-input-wrap">
+              <input type="password" class="api-key-input" placeholder="Paste key (AIzaSy... or AQ...)" autocomplete="off">
+              <button type="button" class="api-key-toggle-vis" title="Show/Hide Key">👁️</button>
+            </div>
+            <div class="api-key-hint">Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio ↗</a></div>
+          </div>
+
+          <div class="api-field-group">
+            <label class="api-field-label">Gemini Model:</label>
+            <select class="api-model-select">
+              <optgroup label="✨ Gemini 3.x Series (Latest)">
+                <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (Latest Flagship - Ultra Fast)</option>
+                <option value="gemini-3.5-flash">Gemini 3.5 Flash (Advanced Reasoning)</option>
+                <option value="gemini-3.0-flash">Gemini 3.0 Flash (Next-Gen Series)</option>
+              </optgroup>
+              <optgroup label="⚡ Gemini 2.x & 1.5 Series">
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash (High-Throughput)</option>
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash (Production Flagship)</option>
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash (Standard - Fast & Free)</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Domain Reasoning)</option>
+              </optgroup>
+              <option value="custom">✏️ Enter Custom Model ID...</option>
+            </select>
+          </div>
+
+          <div class="api-field-group custom-model-group" style="display:none;">
+            <label class="api-field-label">Custom Model Identifier:</label>
+            <input type="text" class="custom-model-input" placeholder="e.g. gemini-3.8-pro, gemini-experimental" style="width:100%; padding:7px 10px; font-size:11.5px; border:1.5px solid #cbd5e1; border-radius:8px; outline:none; background:#f8fafc;">
+          </div>
+
+          <div class="api-test-status" style="display:none;"></div>
+
+          <div class="api-modal-actions">
+            <button type="button" class="api-btn api-btn-test">⚡ Test Key</button>
+            <button type="button" class="api-btn api-btn-save">💾 Save & Activate</button>
+            <button type="button" class="api-btn api-btn-clear">Clear</button>
+          </div>
         </div>
       </div>
 
@@ -934,17 +1001,6 @@ export function initChatbot() {
     });
   }
 
-  // Google AI Studio Gemini API Integration Configuration
-  // Google AI Studio Gemini API Integration Configuration
-  const GEMINI_API_KEY = window.GEMINI_API_KEY || localStorage.getItem('GEMINI_API_KEY') || (typeof atob === 'function' ? atob('QVEuQWI4Uk42Skdja3ItajB6NXYyeW9wNXVNLXY3T2wtV1dhSEV6TWlyZjc5Y2Z2djR0UFE=') : '');
-  const GEMINI_CANDIDATE_MODELS = [
-    'gemini-3.1-flash-lite',
-    'gemini-2.5-flash-lite',
-    'gemini-flash-lite-latest',
-    'gemini-3.6-flash',
-    'gemini-3.7-flash',
-    'gemini-flash-latest'
-  ];
 
   // ── PARAMETER EXTRACTOR FROM FORENSIC TEXT ──
   function extractParamsFromForensicText(text, fallbackFileName = '') {
@@ -1054,28 +1110,13 @@ export function initChatbot() {
         t('exportChat', currentLang)
       ]);
 
-      // Bind One-Click Direct Form Actions
-      if (botMsg) {
-        botMsg.querySelectorAll('.btn-direct-autofill').forEach(btn => {
-          btn.addEventListener('click', (ev) => {
-            ev.stopPropagation();
-            const action = btn.getAttribute('data-action');
-            executeDirectFormAction(action, {
-              ...parsed,
-              imageDataUrl: isImg ? base64Data : null,
-              fileName: file.name
-            });
-          });
-        });
-      }
-
       const voiceNotice = currentLang === 'ta'
-        ? (parsed.product ? `ஆவணம் பகுப்பாய்வு செய்யப்பட்டது. தயாரிப்பு: ${parsed.product}. விவரங்களை படிவங்களில் நேரடியாக நிரப்ப கீழே உள்ள பொத்தான்களைப் பயன்படுத்தவும்.` : `பரிசோதனை நிறைவடைந்தது. விவரங்களை நேரடியாக படிவங்களில் நிரப்பலாம்.`)
+        ? (parsed.product ? `ஆவணம் பகுப்பாய்வு செய்யப்பட்டது. தயாரிப்பு: ${parsed.product}. விவரங்களை கீழே நகலெடுத்து, படிவங்களில் நிரப்பவும்.` : `பரிசோதனை நிறைவடைந்தது. விவரங்களை நகலெடுத்து படிவங்களில் நிரப்பலாம்.`)
         : (currentLang === 'hi'
-          ? (parsed.product ? `दस्तावेज़ का विश्लेषण किया गया। उत्पाद: ${parsed.product}। फ़ॉर्म भरने के लिए नीचे दिए गए बटन का उपयोग करें।` : `निरीक्षण पूर्ण हुआ। निकाले गए विवरणों को सीधे फ़ॉर्म में भरा जा सकता है।`)
+          ? (parsed.product ? `दस्तावेज़ का विश्लेषण किया गया। उत्पाद: ${parsed.product}। विवरण कॉपी करें और फ़ॉर्म में पेस्ट करें।` : `निरीक्षण पूर्ण हुआ। विवरण कॉपी करें और संबंधित फ़ॉर्म में भरें।`)
           : (parsed.product
-            ? `Document analyzed. Identified: ${parsed.product}. You can directly autofill forms using the buttons below.`
-            : `Inspection complete. You can autofill the extracted details directly into respective forms.`));
+            ? `Document analyzed. Identified: ${parsed.product}. Copy the details below and paste them into the relevant form fields.`
+            : `Inspection complete. Copy the extracted details and paste them into the relevant form fields.`));
       speakText(voiceNotice);
     };
 
@@ -1119,71 +1160,57 @@ export function initChatbot() {
       const currentLang = getCurrentLanguage();
       const langObj = SUPPORTED_LANGUAGES.find(l => l.code === currentLang) || { name: 'English', native: 'English', code: 'en' };
 
-      // Query Localized RAG Knowledge Base and Agentic Intent Engine
-      const ragResult = queryBISKnowledgeRAG(text, currentLang);
+      // Check if user entered an API key directly in chat (e.g. AIzaSy... or AQ... or /key ...)
+      const rawText = text.trim();
+      const apiKeyPattern = /^(?:key:?\s*|\/key\s*)?((?:AIzaSy[A-Za-z0-9_-]{33})|(?:AQ\.[A-Za-z0-9_.-]{40,65}))$/i;
+      const keyMatch = rawText.match(apiKeyPattern);
+      if (keyMatch) {
+        const detectedKey = keyMatch[1];
+        saveActiveGeminiApiKey(detectedKey);
+        removeTypingIndicator();
+        appendMessage('🔑 **Google Gemini API Key Detected & Saved!**\nTesting live connection to Google Gemini API...', 'bot');
+        showTypingIndicator();
+        const testRes = await testGeminiConnection(detectedKey);
+        removeTypingIndicator();
+        if (testRes.ok) {
+          appendMessage(`✅ **Google Gemini Live AI Connected!**\nActive model: \`${testRes.model}\`. Your queries will now be processed directly by Google Gemini with live multimodal AI reasoning in English, தமிழ், and हिंदी!`, 'bot', [
+            'தயாரிப்பு சான்றிதழ் பெற முதல் படி என்ன?',
+            'What is the first step to get product verification?',
+            'How to get ISI mark licence?'
+          ]);
+        } else {
+          appendMessage(`⚠️ **Gemini Connection Notice:**\n${testRes.message}\n\n*Using high-fidelity BIS Knowledge Engine in the meantime.*`, 'bot');
+        }
+        return;
+      }
 
+      // 1. Check if Gemini Live API is available and call it
       let replyText = '';
       let isFromApi = false;
-      const candidateModels = ['gemini-3.5-flash', 'gemini-3.1-flash-lite'];
-      const userApiKey = GEMINI_API_KEY;
+      let apiNotice = '';
+      let usedModel = '';
 
-      const languageInstruction = currentLang === 'en'
-        ? 'Respond in clear, professional English.'
-        : `CRITICAL MANDATORY LANGUAGE REQUIREMENT:
-The user has selected the portal language: ${langObj.name} (${langObj.native}, language code: "${currentLang}").
-You MUST formulate your ENTIRE response EXCLUSIVELY in ${langObj.name} (${langObj.native}) script.
-Do NOT reply in English. Do NOT mix English sentences unless quoting exact technical codes like "IS 10500", "CM/L-8400123456", or "HUID".
-All explanations, headings, steps, and bullet points MUST be in fluent, natural ${langObj.name} (${langObj.native}).`;
+      const activeKey = getActiveGeminiApiKey();
+      if (activeKey) {
+        const liveResult = await callLiveGeminiAPI(text, {
+          lang: currentLang,
+          langObj,
+          history: chatHistory
+        });
 
-      for (const model of candidateModels) {
-        if (isFromApi) break;
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2000); // 2.0s fast timeout
-
-          const targetEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userApiKey}`;
-
-          const response = await fetch(targetEndpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            signal: controller.signal,
-            body: JSON.stringify({
-              system_instruction: {
-                parts: [
-                  {
-                    text: `You are ManakBot AI Co-Pilot, the official RAG-grounded intelligent assistant for the Bureau of Indian Standards (BIS), Ministry of Consumer Affairs, Food & Public Distribution, Government of India.\n\n${languageInstruction}\n\nSTRICT INSTRUCTIONS:\n1. Provide clear, accurate, and comprehensive explanations regarding BIS services, ISI certification (CM/L), Hallmarking (HUID), e-Verification, LIMS testing labs, Indian Standards (IS Codes), consumer grievance redressal, and gold purity compensation rules under the BIS Act, 2016.\n2. Answer the user's exact query directly with concise bullet points or numbered lists where appropriate.`
-                  }
-                ]
-              },
-              contents: [
-                {
-                  role: 'user',
-                  parts: [{ text: currentLang === 'en' ? text : `[User Language: ${langObj.name} (${langObj.native})]\n${text}\n\n(Please reply strictly in ${langObj.name} / ${langObj.native})` }]
-                }
-              ]
-            })
-          });
-
-          clearTimeout(timeoutId);
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-              replyText = data.candidates[0].content.parts[0].text.trim();
-              isFromApi = true;
-              break;
-            }
-          } else if (response.status === 401 || response.status === 403) {
-            // Disabled or invalid service key -> proceed immediately to exact offline RAG
-            break;
-          }
-        } catch (err) {
-          console.log(`Model ${model} notice:`, err.message || err);
-          break;
+        if (liveResult.success && liveResult.text) {
+          replyText = liveResult.text;
+          usedModel = liveResult.model;
+          isFromApi = true;
+        } else if (liveResult.isSuspended) {
+          apiNotice = '⚠️ *Note: The configured Google Gemini key returned HTTP 403 (Consumer suspended by Google). Click the 🔑 icon to update your key with a free key from Google AI Studio. Showing grounded BIS guidance:*';
+        } else if (liveResult.isInvalid) {
+          apiNotice = '⚠️ *Note: The configured Google Gemini key is invalid. Click the 🔑 icon in the header to enter a valid key from Google AI Studio. Showing grounded BIS guidance:*';
         }
       }
+
+      // Query Localized RAG Knowledge Base and Agentic Intent Engine
+      const ragResult = queryBISKnowledgeRAG(text, currentLang);
 
       removeTypingIndicator();
 
@@ -1197,14 +1224,18 @@ All explanations, headings, steps, and bullet points MUST be in fluent, natural 
       const agentTask = ragResult?.agentTask || null;
 
       if (isFromApi && replyText) {
-        appendMessage(replyText, 'bot', suggestions, actions, agentTask);
+        const badgeHtml = `<div class="model-badge">✨ Generated by Google Gemini AI (${usedModel || 'Live'})</div>`;
+        const fullMessage = `${replyText}\n\n${badgeHtml}`;
+        appendMessage(fullMessage, 'bot', suggestions, actions, agentTask);
         speakText(replyText);
       } else if (ragResult && ragResult.text) {
-        appendMessage(ragResult.text, 'bot', suggestions, actions, agentTask);
+        const fullContent = apiNotice ? `${apiNotice}\n\n${ragResult.text}` : ragResult.text;
+        appendMessage(fullContent, 'bot', suggestions, actions, agentTask);
         speakText(ragResult.text);
       } else {
         const fallback = getLocalizedRAGResponse('general', { query: text }, currentLang);
-        appendMessage(fallback.text, 'bot', fallback.suggestions, fallback.actions, agentTask);
+        const fullContent = apiNotice ? `${apiNotice}\n\n${fallback.text}` : fallback.text;
+        appendMessage(fullContent, 'bot', fallback.suggestions, fallback.actions, agentTask);
         speakText(fallback.text);
       }
     } catch (criticalErr) {
@@ -1232,6 +1263,152 @@ All explanations, headings, steps, and bullet points MUST be in fluent, natural 
       }
     });
   }
+
+  // ── GEMINI AI SETTINGS MODAL & API KEY CONTROLS ──
+  const apiBtn = chatWindow.querySelector('.chatbot-api-btn');
+  const apiModal = chatWindow.querySelector('.chatbot-api-modal');
+  const apiModalClose = chatWindow.querySelector('.api-modal-close');
+  const apiKeyInput = chatWindow.querySelector('.api-key-input');
+  const apiModelSelect = chatWindow.querySelector('.api-model-select');
+  const customModelGroup = chatWindow.querySelector('.custom-model-group');
+  const customModelInput = chatWindow.querySelector('.custom-model-input');
+  const apiTestStatus = chatWindow.querySelector('.api-test-status');
+  const apiBtnTest = chatWindow.querySelector('.api-btn-test');
+  const apiBtnSave = chatWindow.querySelector('.api-btn-save');
+  const apiBtnClear = chatWindow.querySelector('.api-btn-clear');
+  const apiToggleVis = chatWindow.querySelector('.api-key-toggle-vis');
+  const apiStatusDot = chatWindow.querySelector('.api-status-dot');
+
+  if (apiModelSelect) {
+    apiModelSelect.addEventListener('change', () => {
+      if (customModelGroup) {
+        customModelGroup.style.display = apiModelSelect.value === 'custom' ? 'block' : 'none';
+      }
+    });
+  }
+
+  function refreshApiStatusUI() {
+    const key = getActiveGeminiApiKey();
+    const model = getActiveGeminiModel();
+    if (apiKeyInput) apiKeyInput.value = key || '';
+    if (apiModelSelect) {
+      const exists = Array.from(apiModelSelect.querySelectorAll('option')).some(o => o.value === model);
+      if (exists) {
+        apiModelSelect.value = model;
+        if (customModelGroup) customModelGroup.style.display = 'none';
+      } else {
+        apiModelSelect.value = 'custom';
+        if (customModelGroup) customModelGroup.style.display = 'block';
+        if (customModelInput) customModelInput.value = model;
+      }
+    }
+
+    if (apiStatusDot) {
+      if (key) {
+        apiStatusDot.className = 'api-status-dot';
+        apiStatusDot.title = `Gemini AI Connected (${model})`;
+      } else {
+        apiStatusDot.className = 'api-status-dot status-warn';
+        apiStatusDot.title = 'Offline Domain Engine';
+      }
+    }
+  }
+
+  refreshApiStatusUI();
+  window.addEventListener('gemini-key-changed', refreshApiStatusUI);
+  window.addEventListener('gemini-model-changed', refreshApiStatusUI);
+
+  if (apiBtn && apiModal) {
+    apiBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = apiModal.style.display === 'block';
+      apiModal.style.display = isVisible ? 'none' : 'block';
+      if (!isVisible) refreshApiStatusUI();
+    });
+  }
+
+  if (apiModalClose && apiModal) {
+    apiModalClose.addEventListener('click', () => {
+      apiModal.style.display = 'none';
+    });
+  }
+
+  if (apiToggleVis && apiKeyInput) {
+    apiToggleVis.addEventListener('click', () => {
+      apiKeyInput.type = apiKeyInput.type === 'password' ? 'text' : 'password';
+      apiToggleVis.textContent = apiKeyInput.type === 'password' ? '👁️' : '🔒';
+    });
+  }
+
+  if (apiBtnTest) {
+    apiBtnTest.addEventListener('click', async () => {
+      const enteredKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+      let enteredModel = apiModelSelect ? apiModelSelect.value : 'gemini-3.8-flash';
+      if (enteredModel === 'custom' && customModelInput) {
+        enteredModel = customModelInput.value.trim() || 'gemini-3.8-flash';
+      }
+      if (apiTestStatus) {
+        apiTestStatus.style.display = 'block';
+        apiTestStatus.className = 'api-test-status status-warn';
+        apiTestStatus.innerHTML = `Connecting to Google Gemini API (${enteredModel})...`;
+      }
+      const testRes = await testGeminiConnection(enteredKey, enteredModel);
+      if (apiTestStatus) {
+        if (testRes.ok) {
+          apiTestStatus.className = 'api-test-status status-ok';
+          apiTestStatus.innerHTML = `✅ ${testRes.message}`;
+          if (apiStatusDot) apiStatusDot.className = 'api-status-dot';
+        } else {
+          apiTestStatus.className = 'api-test-status status-err';
+          apiTestStatus.innerHTML = `⚠️ ${testRes.message}`;
+          if (apiStatusDot) apiStatusDot.className = 'api-status-dot status-error';
+        }
+      }
+    });
+  }
+
+  if (apiBtnSave) {
+    apiBtnSave.addEventListener('click', () => {
+      const enteredKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+      let enteredModel = apiModelSelect ? apiModelSelect.value : 'gemini-3.8-flash';
+      if (enteredModel === 'custom' && customModelInput) {
+        enteredModel = customModelInput.value.trim() || 'gemini-3.8-flash';
+      }
+      saveActiveGeminiApiKey(enteredKey);
+      saveActiveGeminiModel(enteredModel);
+      refreshApiStatusUI();
+      if (apiTestStatus) {
+        apiTestStatus.style.display = 'block';
+        apiTestStatus.className = 'api-test-status status-ok';
+        apiTestStatus.innerHTML = `✅ Saved! Live AI activated with model ${enteredModel}.`;
+      }
+      setTimeout(() => {
+        if (apiModal) apiModal.style.display = 'none';
+      }, 1200);
+    });
+  }
+
+  if (apiBtnClear) {
+    apiBtnClear.addEventListener('click', () => {
+      saveActiveGeminiApiKey('');
+      if (apiKeyInput) apiKeyInput.value = '';
+      refreshApiStatusUI();
+      if (apiTestStatus) {
+        apiTestStatus.style.display = 'block';
+        apiTestStatus.className = 'api-test-status status-warn';
+        apiTestStatus.innerHTML = 'Key cleared. Using offline BIS Domain Engine.';
+      }
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (e.target && e.target.classList.contains('btn-open-key-settings')) {
+      if (apiModal) {
+        apiModal.style.display = 'block';
+        refreshApiStatusUI();
+      }
+    }
+  });
 
   // Welcome Message
   function sendWelcomeMessage() {

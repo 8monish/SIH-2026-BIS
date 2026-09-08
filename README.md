@@ -8,7 +8,7 @@ An intelligent, web-based platform for the Bureau of Indian Standards (BIS), fea
 ---
 
 ## ⚡ Quick Start
-
++
 Run the project immediately using the launcher scripts:
 
 ### Linux / macOS

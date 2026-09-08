@@ -4,9 +4,9 @@
  */
 
 import { performClientOCR, parseExtractedText, generateAccurateInspectionReport } from './ocr-engine.js';
-import { executeDirectFormAction, showAutofillToast } from './form-autofill.js';
 import { SUPPORTED_LANGUAGES, getCurrentLanguage, setLanguage, t, getVoiceLanguage, renderLanguageSelector, updatePageDOMTranslations, getLocalizedRAGResponse } from './i18n.js';
 import { resolveExactBISQuery } from './bis-knowledge-engine.js';
+import { getActiveGeminiApiKey, saveActiveGeminiApiKey, getActiveGeminiModel, saveActiveGeminiModel, callLiveGeminiAPI } from './gemini-bridge.js';
 
 export function initManakBotPage() {
   const chatContainer = document.querySelector('.studio-chat-container');
@@ -36,8 +36,68 @@ export function initManakBotPage() {
 
   const audioToggle = document.getElementById('toggle-speech-synthesis');
   const apiKeyInput = document.getElementById('gemini-api-key-input');
+  const modelSelect = document.getElementById('studio-gemini-model-select');
+  const customModelContainer = document.getElementById('studio-custom-model-container');
+  const customModelInput = document.getElementById('studio-custom-model-input');
   const clearChatBtn = document.getElementById('btn-clear-chat');
   const exportChatBtn = document.getElementById('btn-export-chat');
+
+  if (apiKeyInput) {
+    const activeKey = getActiveGeminiApiKey();
+    if (activeKey) apiKeyInput.value = activeKey;
+    apiKeyInput.addEventListener('input', () => {
+      saveActiveGeminiApiKey(apiKeyInput.value.trim());
+    });
+  }
+
+  // Gemini Model Selector & Custom Model input handling in Studio
+  function refreshStudioModelUI() {
+    if (!modelSelect) return;
+    const currentModel = getActiveGeminiModel();
+    const options = Array.from(modelSelect.querySelectorAll('option'));
+    const isPreset = options.some(opt => opt.value === currentModel);
+
+    if (isPreset) {
+      modelSelect.value = currentModel;
+      if (customModelContainer) customModelContainer.style.display = 'none';
+    } else {
+      modelSelect.value = 'custom';
+      if (customModelContainer) customModelContainer.style.display = 'block';
+      if (customModelInput) customModelInput.value = currentModel;
+    }
+  }
+
+  if (modelSelect) {
+    refreshStudioModelUI();
+
+    modelSelect.addEventListener('change', () => {
+      if (modelSelect.value === 'custom') {
+        if (customModelContainer) customModelContainer.style.display = 'block';
+        if (customModelInput) {
+          customModelInput.focus();
+          if (customModelInput.value.trim()) {
+            saveActiveGeminiModel(customModelInput.value.trim());
+          }
+        }
+      } else {
+        if (customModelContainer) customModelContainer.style.display = 'none';
+        saveActiveGeminiModel(modelSelect.value);
+      }
+    });
+
+    if (customModelInput) {
+      customModelInput.addEventListener('input', () => {
+        const val = customModelInput.value.trim();
+        if (val && modelSelect.value === 'custom') {
+          saveActiveGeminiModel(val);
+        }
+      });
+    }
+
+    window.addEventListener('gemini-model-changed', () => {
+      refreshStudioModelUI();
+    });
+  }
 
   let recognition = null;
   let isListening = false;
@@ -287,63 +347,130 @@ export function initManakBotPage() {
     if (!file) return;
 
     const isImg = file.type && file.type.startsWith('image/');
-    
-    const processData = async (base64Data) => {
-      const currentLang = getCurrentLanguage();
 
+    const processData = async (base64Data) => {
+      // Show user message with file preview
       const previewHtml = isImg
-        ? `<div style="font-weight:600;font-size:11px;margin-bottom:4px;color:var(--color-primary, #003082);">🔍 Attached Image for Forensic AI Inspection:</div><img src="${base64Data}" style="max-width:240px;max-height:160px;border-radius:8px;border:1.5px solid var(--color-primary-100, #d0def2);display:block;box-shadow:0 2px 6px rgba(0,48,130,0.12);" alt="Uploaded Document">`
-        : `<div style="font-weight:600;font-size:11px;margin-bottom:4px;color:var(--color-primary, #003082);">🔍 Attached Document Specification:</div><div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-primary, #003082);padding:8px 12px;background:var(--color-primary-50, #e8eef8);border-radius:8px;border:1px solid var(--color-primary-100, #d0def2);"><span style="font-size:22px;">📄</span><span><strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB)</span></div>`;
+        ? `<div style="font-weight:600;font-size:11px;margin-bottom:4px;color:var(--color-primary, #003082);">📎 Attached Image:</div><img src="${base64Data}" style="max-width:240px;max-height:160px;border-radius:8px;border:1.5px solid var(--color-primary-100, #d0def2);display:block;box-shadow:0 2px 6px rgba(0,48,130,0.12);" alt="Uploaded file">`
+        : `<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-primary, #003082);padding:8px 12px;background:var(--color-primary-50, #e8eef8);border-radius:8px;border:1px solid var(--color-primary-100, #d0def2);margin-top:4px;"><span style="font-size:22px;">📄</span><span><strong>${file.name}</strong> · ${(file.size / 1024).toFixed(1)} KB</span></div>`;
 
       const userNoteHtml = userNote ? `<div style="margin-bottom:6px;font-size:13px;line-height:1.4;">${userNote}</div>` : '';
       appendStudioMessage(`${userNoteHtml}${previewHtml}`, 'user');
       showStudioTyping();
 
-      let rawText = '';
-      let confidence = 85;
-      let ocrSource = 'Real Optical Character Recognition (OCR)';
+      // Send file directly to Gemini — no OCR, no preprocessing
+      const apiKey = getActiveGeminiApiKey();
+      if (apiKey) {
+        const primaryModel = getActiveGeminiModel() || 'gemini-2.0-flash';
+        const candidateModels = [primaryModel, 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
+          .filter((v, i, a) => Boolean(v) && a.indexOf(v) === i);
 
-      try {
-        if (isImg) {
-          const ocrResult = await performClientOCR(file, base64Data);
-          rawText = ocrResult.text || '';
-          confidence = ocrResult.confidence || 80;
-          ocrSource = ocrResult.source || 'Optical Character Recognition (OCR)';
-        } else {
+        const fileMimeType = file.type || (isImg ? 'image/png' : 'application/octet-stream');
+        const pureBase64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+
+        // User's message is the prompt; if none, ask Gemini to describe it
+        const userPromptText = userNote || 'What is this file? Describe what it contains and what it is about.';
+
+        const parts = [
+          { inlineData: { mimeType: fileMimeType, data: pureBase64 } },
+          { text: userPromptText }
+        ];
+
+        for (const model of candidateModels) {
           try {
-            rawText = await file.text();
-            confidence = 95;
-            ocrSource = 'Document Text Content';
-          } catch (_) {
-            rawText = file.name;
-          }
-        }
-      } catch (err) {
-        console.warn('OCR error in studio:', err);
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: controller.signal,
+              body: JSON.stringify({ contents: [{ role: 'user', parts }] })
+            });
+
+            clearTimeout(timeoutId);
+
+            if (response.ok) {
+              const data = await response.json();
+              const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (replyText && replyText.trim()) {
+                removeStudioTyping();
+                appendStudioMessage(`${replyText.trim()}\n\n<div class="model-badge">✨ Generated by Google Gemini AI (${model})</div>`, 'bot');
+                speakText(replyText.trim());
+                return;
+              }
       }
+
+      // === Offline Fallback: Clean natural file summary ===
+      // Extract text content for non-image files
+      let extractedText = '';
+      try {
+        if (!isImg) {
+          extractedText = await file.text();
+        } else {
+          const ocrResult = await performClientOCR(file, base64Data);
+          extractedText = ocrResult.text || '';
+        }
+      } catch (_) { extractedText = ''; }
 
       removeStudioTyping();
 
-      const parsed = parseExtractedText(rawText, file.name);
-      parsed.imageDataUrl = isImg ? base64Data : null;
-      parsed.fileName = file.name;
+      // Build a clean, natural summary card
+      const sizeKb = (file.size / 1024).toFixed(1);
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+      const sizeDisplay = file.size > 1024 * 1024 ? `${sizeMb} MB` : `${sizeKb} KB`;
+      const ext = file.name.split('.').pop().toUpperCase();
+      const fileTypeLabel = isImg ? `${ext} Image` : `${ext} Document`;
 
-      const report = generateAccurateInspectionReport(
-        parsed,
-        { name: file.name, size: file.size, confidence },
-        ocrSource
-      );
+      // Snippet of extracted text for preview
+      const textSnippet = extractedText.trim().slice(0, 600).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const hasText = textSnippet.length > 10;
 
-      appendStudioMessage(report.html, 'bot', [
-        t('chipGrievance', currentLang),
-        t('chipVerifyIsi', currentLang),
-        t('chipPreviewStandard', currentLang)
+      // If user asked something, try to answer from extracted text
+      let userNoteAnswerHtml = '';
+      if (userNote && hasText) {
+        userNoteAnswerHtml = `
+          <div style="margin-top:12px;padding:10px 14px;background:#f0f7ff;border-left:4px solid #3b82f6;border-radius:8px;font-size:13px;color:#1e3a5f;line-height:1.6;">
+            <strong style="display:block;margin-bottom:4px;">💬 Regarding your question:</strong>
+            Based on the file content, here is what I found — ${textSnippet.slice(0, 300)}${textSnippet.length > 300 ? '…' : ''}
+          </div>`;
+      }
+
+      const summaryHtml = `
+        <div style="font-family:inherit;font-size:13px;line-height:1.6;color:#1e293b;">
+          <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:8px;">
+            ${isImg ? '🖼️' : '📄'} ${file.name}
+          </div>
+
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+            <span style="background:#e8eef8;color:#003082;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;">📁 ${fileTypeLabel}</span>
+            <span style="background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;">📏 ${sizeDisplay}</span>
+            ${hasText ? `<span style="background:#ecfdf5;color:#065f46;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;">✅ Text Extracted</span>` : ''}
+          </div>
+
+          ${hasText ? `
+          <div style="margin-bottom:12px;">
+            <div style="font-weight:600;font-size:12px;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">File Contents Preview</div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:12px;color:#334155;white-space:pre-wrap;max-height:140px;overflow-y:auto;font-family:monospace;line-height:1.5;">${textSnippet}${extractedText.trim().length > 600 ? '\n…' : ''}</div>
+          </div>` : `
+          <div style="padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;color:#64748b;margin-bottom:12px;">
+            ${isImg ? '🖼️ Image file — no readable text detected. Add a Gemini API key for full AI-powered image understanding.' : '📄 Binary or unsupported format — no text content could be extracted.'}
+          </div>`}
+
+          ${userNoteAnswerHtml}
+
+          <div style="margin-top:10px;font-size:12px;color:#94a3b8;border-top:1px dashed #e2e8f0;padding-top:8px;">
+            💡 Add a Gemini API key in the sidebar for full AI-powered multimodal file analysis.
+          </div>
+        </div>`;
+
+      appendStudioMessage(summaryHtml, 'bot', [
+        'What is this file about?',
+        'Summarize the key points',
+        'Translate this document'
       ]);
-
-      const voiceNotice = parsed.product
-        ? `Document analyzed. Identified: ${parsed.product}. You can directly autofill forms using the buttons below.`
-        : `Inspection complete. You can autofill the extracted details directly into respective forms.`;
-      speakText(voiceNotice);
+      speakText(`File received: ${file.name}. ${hasText ? 'Text content has been extracted.' : 'No text could be extracted from this file.'}`);
     };
 
     if (cachedDataUrl) {
@@ -454,9 +581,22 @@ export function initManakBotPage() {
     let actions = [];
 
     try {
-      botReply = await callLiveFreeLLMAPI(text);
+      const liveRes = await callLiveGeminiAPI(text, {
+        lang: currentLang,
+        langObj,
+        history: conversationHistory
+      });
+
+      if (liveRes.success && liveRes.text) {
+        botReply = `${liveRes.text}\n\n<div class="model-badge">✨ Generated by Google Gemini AI (${liveRes.model})</div>`;
+        const responseObj = getStudioBotResponse(text);
+        suggestions = responseObj.suggestions;
+        actions = responseObj.actions || [];
+      } else {
+        throw new Error(liveRes.error || 'Gemini API not active');
+      }
     } catch (err) {
-      console.log('FreeLLM API call offline/unreachable, using offline knowledge engine:', err);
+      console.log('Gemini API notice, using BIS domain engine:', err.message || err);
       const responseObj = getStudioBotResponse(text);
       botReply = responseObj.text;
       suggestions = responseObj.suggestions;
@@ -478,60 +618,6 @@ export function initManakBotPage() {
         handleSendMessage();
       }
     });
-  }
-
-  const GEMINI_API_KEY = window.GEMINI_API_KEY || localStorage.getItem('GEMINI_API_KEY') || (typeof atob === 'function' ? atob('QVEuQWI4Uk42Skdja3ItajB6NXYyeW9wNXVNLXY3T2wtV1dhSEV6TWlyZjc5Y2Z2djR0UFE=') : '');
-
-  // 4. Google AI Studio Gemini API Bridge with BIS Domain Restrictions
-  async function callLiveFreeLLMAPI(userPrompt) {
-    const userKey = apiKeyInput?.value?.trim() || GEMINI_API_KEY;
-    const currentLang = getCurrentLanguage();
-    const langObj = SUPPORTED_LANGUAGES.find(l => l.code === currentLang) || { name: 'English', native: 'English', code: 'en' };
-    const langInstruction = currentLang === 'en'
-      ? ''
-      : `\n\nCRITICAL MANDATORY LANGUAGE INSTRUCTION:
-The user has chosen language: ${langObj.name} (${langObj.native}, code: "${currentLang}").
-You MUST formulate your entire response EXCLUSIVELY in ${langObj.name} (${langObj.native}) script. Do NOT reply in English.`;
-
-    const candidateModels = [
-      'gemini-3.1-flash-lite',
-      'gemini-2.5-flash-lite',
-      'gemini-flash-lite-latest',
-      'gemini-3.6-flash',
-      'gemini-3.7-flash',
-      'gemini-3.5-flash'
-    ];
-    const systemContext = "You are ManakBot AI, the official intelligent assistant for the Bureau of Indian Standards (BIS), Ministry of Consumer Affairs, Food & Public Distribution, Govt of India.\n\nSTRICT DOMAIN RESTRICTIONS & BOUNDARIES:\n1. ONLY answer queries regarding BIS services, ISI certification, Hallmarking (HUID), e-Verification, LIMS testing labs, Indian Standards (e.g., IS 10500, IS 456), consumer grievance redressal, gold purity compensation calculations, and navigating this BIS portal.\n2. If a query is unrelated to BIS (e.g. general knowledge, programming, non-BIS topics), politely decline and state: 'I am specialized exclusively as the Bureau of Indian Standards (BIS) Co-Pilot. I can assist you with ISI licence verification, Hallmarking HUID, Indian Standards, LIMS testing fees, or Consumer Grievances.'\n3. Maintain a professional, polite tone without emojis. Provide step-by-step guidance." + langInstruction;
-
-    for (const model of candidateModels) {
-      try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userKey}`;
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            system_instruction: {
-              parts: [{ text: systemContext }]
-            },
-            contents: [
-              { role: "user", parts: [{ text: currentLang === 'en' ? userPrompt : `[User Language: ${langObj.name} (${langObj.native})]\n${userPrompt}\n\n(Please reply strictly in ${langObj.name} / ${langObj.native})` }] }
-            ]
-          })
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-            return data.candidates[0].content.parts[0].text.trim();
-          }
-        }
-      } catch (err) {
-        console.log(`Gemini API model ${model} error:`, err);
-      }
-    }
-    throw new Error('All Gemini API candidate models were unavailable');
   }
 
   // 5. Append Message in Studio
@@ -587,19 +673,7 @@ You MUST formulate your entire response EXCLUSIVELY in ${langObj.name} (${langOb
       msgEl.appendChild(chipContainer);
     }
 
-    // Attach listeners for 1-Click Form Autofill Buttons
-    msgEl.querySelectorAll('.btn-direct-autofill').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const action = btn.getAttribute('data-action');
-        const payloadStr = btn.getAttribute('data-payload');
-        let payload = {};
-        try {
-          payload = JSON.parse(decodeURIComponent(payloadStr));
-        } catch (_) {}
-        await executeDirectFormAction(action, payload);
-      });
-    });
+    // No longer binds autofill button listeners — extracted details shown as copy cards
 
     chatMessages.appendChild(msgEl);
     chatMessages.scrollTop = chatMessages.scrollHeight;

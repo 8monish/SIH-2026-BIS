@@ -199,6 +199,21 @@ export function resolveExactBISQuery(query, lang = 'en') {
   const directMatch = checkDirectLicenceLookup(q, lang);
   if (directMatch) return directMatch;
 
+  // 0.5. Product Verification / Certification Roadmap & First Step to Apply
+  const isCertificationRoadmap = (
+    (q.includes('first step') || q.includes('step') || q.includes('how to get') || q.includes('how can i get') || q.includes('how do i get') || q.includes('procedure') || q.includes('process') || q.includes('roadmap') || q.includes('way to')) &&
+    (q.includes('product') || q.includes('verification') || q.includes('verify') || q.includes('certif') || q.includes('licence') || q.includes('license') || q.includes('isi mark') || q.includes('isi')) ||
+    q.includes('product verification') || q.includes('product certification') || q.includes('get certified') ||
+    q.includes('முதல் படி') || q.includes('தயாரிப்பு சரிபார்ப்பு') || q.includes('சான்றிதழ் பெற') || q.includes('உரிமம் பெற வழிமுறை') ||
+    q.includes('पहला कदम') || q.includes('पहला चरण') || q.includes('उत्पाद सत्यापन') || q.includes('प्रमाणन प्रक्रिया')
+  );
+  if (isCertificationRoadmap) {
+    const isSpecialized = q.includes('validity') || q.includes('renew') || q.includes('document') || q.includes('fee') || q.includes('cost') || q.includes('price') || q.includes('office') || q.includes('penalty') || q.includes('msme') || q.includes('huid') || q.includes('complaint');
+    if (!isSpecialized) {
+      return answerProductCertificationRoadmap(q, lang);
+    }
+  }
+
   // 1. Office Locations & Contact Numbers
   if (
     q.includes('office') || q.includes('branch') || q.includes('address') || q.includes('where is') ||
@@ -607,6 +622,33 @@ function answerFMCSForeignCertification(q, lang) {
     actions: [
       { text: '🔍 ' + (lang === 'ta' ? 'மின்-சரிபார்ப்பு' : 'e-Verification'), url: 'verify-licence.html?type=fmcs' },
       { text: '📖 ' + (lang === 'ta' ? 'தரநிலைகள் அடைவு' : 'Standards Catalog'), url: 'standards-search.html' }
+    ]
+  };
+}
+
+// ── 8.5. PRODUCT CERTIFICATION & VERIFICATION ROADMAP (First Step & Full Procedure) ──
+function answerProductCertificationRoadmap(q, lang) {
+  let text = '';
+  if (lang === 'ta') {
+    text = `🚀 **தயாரிப்பு சான்றிதழ் மற்றும் சரிபார்ப்பு பெறுவதற்கான அதிகாரப்பூர்வ 5-படி வழிகாட்டி (Product Certification & Verification Roadmap)**:\n\nநீங்கள் உங்கள் தயாரிப்புக்கு **BIS ISI முத்திரை சான்றிதழ்** பெற விரும்பினால், பின்பற்ற வேண்டிய முதல் படி மற்றும் முழுமையான செயல்முறை இதோ:\n\n1. **படி 1 (முதல் படி): தயாரிப்புக்கான இந்திய தரநிலையை (IS Code) கண்டறிதல்**:\n   - உங்கள் தயாரிப்புக்கு பொருந்தக்கூடிய இந்திய தரநிலைக் குறியீட்டை (எ.கா. குடிநீருக்கு **IS 10500**, ஹெல்மெட்டுக்கு **IS 4151**, சிமெண்ட்டுக்கு **IS 269**, எலக்ட்ரானிக் பிளக்குகளுக்கு **IS 1293**) [BIS தரநிலைகள் அட்டவணையில்](standards-search.html) கண்டறியவும்.\n   - தயாரிப்பு மத்திய அரசின் **கட்டாய தரக்கட்டுப்பாட்டு உத்தரவின் (QCO)** கீழ் வருகிறதா என்பதை உறுதி செய்யவும்.\n\n2. **படி 2: உள்-ஆய்வக சோதனை வசதியை அமைத்தல் (STI)**:\n   - BIS-ன் ஆய்வு மற்றும் சோதனை வழிகாட்டுதலின்படி (Scheme of Testing & Inspection - STI), தேவையான சோதனை உபகரணங்கள், அளவீட்டு சான்றிதழ்கள் மற்றும் தகுதிவாய்ந்த தரக்கட்டுப்பாட்டு பொறியாளரை உங்கள் உற்பத்தி ஆலையில் பணியமர்த்தவும்.\n\n3. **படி 3: மணக்-ஆன்லைன் (Manakonline) தளத்தில் ஆன்லைன் விண்ணப்பம் (Form-I)**:\n   - அதிகாரப்பூர்வ [Manakonline போர்ட்டலில்](https://www.manakonline.in) படிவம்-1 (Form-I) சமர்ப்பிக்கவும்.\n   - ஆலை வரைபடம், இயந்திரங்கள் பட்டியல், உற்பத்தி செயல்முறை மற்றும் ₹1,000 விண்ணப்ப கட்டணம் (MSME நிறுவனங்களுக்கு 50% தள்ளுபடி) செலுத்தவும்.\n\n4. **படி 4: BIS தொழில்நுட்ப அதிகாரிகளின் நேரடி ஆலை தணிக்கை**:\n   - BIS அதிகாரிகள் தொழிற்சாலைக்கு நேரில் வந்து தணிக்கை செய்து, சோதனைக்காக தயாரிப்பு மாதிரிகளை (Samples) சீலிட்டு எடுப்பார்கள்.\n\n5. **படி 5: ISI முத்திரை உரிமம் (CM/L) வழங்குதல்**:\n   - ஆய்வக சோதனை அறிக்கை வெற்றிகரமாக முடிந்ததும், 10-இலக்க **CM/L-XXXXXXXXXX** உரிமம் வழங்கப்படும்.\n\n*(குறிப்பு: நீங்கள் ஏற்கனவே வாங்கிய ஒரு பொருளின் உண்மைத்தன்மையை சரிபார்க்க விரும்பும் நுகர்வோர் எனில், தயாரிப்பில் உள்ள 10-இலக்க CM/L எண்ணை எங்கள் [மின்-சரிபார்ப்பு தளத்தில்](verify-licence.html) அல்லது BIS CARE செயலியில் உள்ளிட்டு உடனடியாக உண்மைத்தன்மையை சரிபார்க்கலாம்).*`;
+  } else if (lang === 'hi') {
+    text = `🚀 **उत्पाद सत्यापन एवं आईएसआई मार्क प्रमाणन का आधिकारिक 5-चरणीय रोडमैप (Product Certification Roadmap)**:\n\n1. **चरण 1 (पहला कदम): प्रासंगिक भारतीय मानक (IS Code) की पहचान**:\n   - उत्पाद का भारतीय मानक (जैसे पेयजल हेतु **IS 10500**, हेलमेट हेतु **IS 4151**, सीमेंट हेतु **IS 269**) [मानक खोज](standards-search.html) पर देखें।\n   - जांचें कि क्या उत्पाद केंद्र सरकार के अनिवार्य गुणवत्ता नियंत्रण आदेश (QCO) के तहत आता है।\n2. **चरण 2: इन-हाउस परीक्षण प्रयोगशाला की स्थापना (STI)**:\n   - बीआईएस के परीक्षण एवं निरीक्षण योजना (STI) के अनुसार इन-हाउस परीक्षण उपकरण स्थापित करें।\n3. **चरण 3: Manakonline पोर्टल पर ऑनलाइन आवेदन (Form-I)**:\n   - [Manakonline](https://www.manakonline.in) पर फॉर्म-1, आवश्यक दस्तावेज और ₹1,000 आवेदन शुल्क (एमएसएमई हेतु 50% छूट) जमा करें।\n4. **चरण 4: बीआईएस अधिकारियों द्वारा कारखाना ऑडिट एवं स्वतंत्र सैंपल जब्ती**।\n5. **चरण 5: 10-अंकीय CM/L लाइसेंस आवंटन**।\n\n*(नोट: यदि आप खरीदे गए उत्पाद की सत्यता जांचना चाहते हैं, तो पहला कदम उत्पाद पर छपे 10-अंकीय CM/L या 6-अंकीय HUID को [ई-सत्यापन](verify-licence.html) में जांचना है)।*`;
+  } else {
+    text = `🚀 **Official Step-by-Step Roadmap: Product Verification & ISI Certification**:\n\nIf you are looking to obtain **BIS Product Certification (ISI Mark)** for your manufactured goods, here is the exact first step and comprehensive roadmap:\n\n1. **Step 1 (First Step): Identify the Applicable Indian Standard (IS Code)**:\n   - Search your product in the [BIS Standards Catalogue](standards-search.html) to identify the specific Standard (e.g., **IS 10500** for Drinking Water, **IS 4151** for Helmets, **IS 269** for Cement, **IS 1293** for Plugs/Sockets).\n   - Verify whether your product is notified under mandatory **Quality Control Orders (QCO)** by the Government of India.\n\n2. **Step 2: Set Up In-House Testing Laboratory (STI Compliance)**:\n   - Establish testing equipment complying strictly with the BIS Scheme of Testing and Inspection (STI) and employ qualified technical quality testing staff.\n\n3. **Step 3: Online Application on Manakonline (Form-I / Form-V)**:\n   - Register and file your digital application on the [Manakonline Portal](https://www.manakonline.in).\n   - Upload manufacturing machinery inventory, plant layout, calibrated test instruments, and remit the ₹1,000 application fee (50% concession for MSMEs/Startups).\n\n4. **Step 4: Factory Audit & Sample Verification**:\n   - BIS Technical Officers conduct an on-site physical inspection of your manufacturing facility, verify test capabilities, and draw sealed independent samples for testing.\n\n5. **Step 5: Grant of ISI Mark Licence (CM/L)**:\n   - Following passing laboratory test reports from a recognized BIS/NABL laboratory, BIS issues the official 10-digit **CM/L-XXXXXXXXXX** licence permitting ISI mark stamping.\n\n*(Note: If you are a consumer looking to verify an already purchased product, your first step is locating the 10-digit CM/L number or 6-digit HUID code and entering it in our [e-Verification Suite](verify-licence.html) or the BIS CARE mobile app).*`;
+  }
+
+  return {
+    text,
+    suggestions: [
+      lang === 'ta' ? 'விண்ணப்ப கட்டண விவரங்கள்' : 'Application Fees & Costs',
+      lang === 'ta' ? 'தேவையான ஆவணங்கள்' : 'Required Documents Checklist',
+      lang === 'ta' ? 'உரிமத்தை சரிபார்க்கவும்' : 'Verify CM/L Licence',
+      lang === 'ta' ? 'MSME 50% கட்டண சலுகை' : 'MSME 50% Concessions'
+    ],
+    actions: [
+      { text: '📖 ' + (lang === 'ta' ? 'தரநிலைகள் அட்டவணை' : 'Standards Catalog'), url: 'standards-search.html' },
+      { text: '🔍 ' + (lang === 'ta' ? 'மின்-சரிபார்ப்பு' : 'e-Verification'), url: 'verify-licence.html' },
+      { text: '🧪 ' + (lang === 'ta' ? 'ஆய்வக அடைவு' : 'LIMS Labs Directory'), url: 'lims-lab-directory.html' }
     ]
   };
 }

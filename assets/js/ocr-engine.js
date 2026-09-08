@@ -454,35 +454,97 @@ export function generateAccurateInspectionReport(parsed, fileMeta = {}, ocrSourc
         <pre style="margin-top:8px;padding:8px;background:#ffffff;border:1px solid #e2e8f0;border-radius:6px;max-height:160px;overflow-y:auto;white-space:pre-wrap;font-family:monospace;font-size:11px;color:#334155;">${rawTextSnippet}</pre>
       </details>
 
-      <!-- Direct Form Push Action Cards -->
+      <!-- Extracted Details Card — Copy-Ready for Any Form -->
       <div style="margin-top:14px;padding-top:12px;border-top:1px dashed #cbd5e1;">
-        <div style="font-weight:800;font-size:12px;color:#003082;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-          <span>⚡</span> ${t('ocrActionsHeading', lang)}
+        <div style="font-weight:800;font-size:12px;color:#003082;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+          <span>📋</span> ${t('ocrActionsHeading', lang)}
         </div>
-        <div class="direct-autofill-btn-grid" style="display:grid;grid-template-columns:1fr;gap:6px;">
-          <button type="button" class="btn-direct-autofill btn-direct-grievance" data-action="grievance" data-payload="${payloadStr}" style="display:flex;align-items:center;gap:8px;width:100%;padding:9px 14px;background:#f26522;color:#ffffff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;text-align:left;transition:transform 0.15s, background 0.15s;">
-            <span>📝</span>
-            <span style="flex:1;">${t('btnAutofillGrievance', lang)}</span>
-            <span style="font-size:14px;">→</span>
-          </button>
-          
-          <button type="button" class="btn-direct-autofill btn-direct-verify" data-action="verify" data-payload="${payloadStr}" style="display:flex;align-items:center;gap:8px;width:100%;padding:9px 14px;background:#003082;color:#ffffff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;text-align:left;transition:transform 0.15s, background 0.15s;">
-            <span>🔍</span>
-            <span style="flex:1;">${t('btnVerifyLicence', lang)} (${parsed.cml || parsed.huid || parsed.crs || 'Auto'})</span>
-            <span style="font-size:14px;">→</span>
-          </button>
 
-          <button type="button" class="btn-direct-autofill btn-direct-standard" data-action="standard" data-payload="${payloadStr}" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 14px;background:#1a4a9a;color:#ffffff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;text-align:left;transition:transform 0.15s, background 0.15s;">
-            <span>📖</span>
-            <span style="flex:1;">${t('btnSearchStandard', lang)} (${parsed.standard ? parsed.standard.split(':')[0] : 'Search Standard'})</span>
-            <span style="font-size:14px;">→</span>
-          </button>
+        <!-- Field-by-field copy cards -->
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${[
+            { icon: '📌', label: t('ocrProduct', lang), value: productVal, key: 'product' },
+            { icon: '🏢', label: t('ocrBrand', lang), value: brandVal, key: 'brand' },
+            { icon: '📜', label: t('ocrStandard', lang), value: stdVal, key: 'standard' },
+            { icon: '🔢', label: t('ocrLicence', lang), value: licenceVal, key: 'licence' },
+            { icon: '💰', label: t('ocrPrice', lang), value: priceVal, key: 'price' },
+            { icon: '🧾', label: t('ocrInvoice', lang), value: invVal, key: 'invoice' },
+            { icon: '📅', label: t('ocrDate', lang), value: dateVal, key: 'date' },
+          ].filter(f => f.value && f.value !== notDet).map(f => `
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;">
+              <div style="min-width:0;flex:1;">
+                <span style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">${f.icon} ${f.label}</span>
+                <div style="font-size:12.5px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;" title="${f.value}">${f.value}</div>
+              </div>
+              <button type="button"
+                onclick="(function(btn, val) {
+                  navigator.clipboard ? navigator.clipboard.writeText(val).then(() => {
+                    var orig = btn.textContent;
+                    btn.textContent = '✅ Copied!';
+                    btn.style.background = '#10b981';
+                    setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 1600);
+                  }) : (function() {
+                    var ta = document.createElement('textarea');
+                    ta.value = val;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    btn.textContent = '✅ Copied!';
+                    setTimeout(() => { btn.textContent = 'Copy'; }, 1600);
+                  })();
+                })(this, ${JSON.stringify(f.value)})"
+                style="flex-shrink:0;padding:4px 10px;background:#003082;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background 0.2s;">
+                Copy
+              </button>
+            </div>
+          `).join('')}
+        </div>
 
-          <button type="button" class="btn-direct-autofill btn-direct-backend" data-action="upload" data-payload="${payloadStr}" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 14px;background:#059669;color:#ffffff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;text-align:left;transition:transform 0.15s, background 0.15s;">
-            <span>💾</span>
-            <span style="flex:1;">${t('btnUploadBackend', lang)}</span>
-            <span style="font-size:14px;">✔</span>
-          </button>
+        <!-- Copy All Details Button -->
+        <button type="button"
+          onclick="(function(btn) {
+            var details = [
+              ${[
+                ['Product / Item', productVal],
+                ['Brand / Manufacturer', brandVal],
+                ['IS Standard', stdVal],
+                ['Licence / Certification', licenceVal],
+                ['Price / MRP', priceVal],
+                ['Invoice Reference', invVal],
+                ['Date', dateVal],
+              ].filter(([, v]) => v && v !== notDet).map(([k, v]) => `'${k}: ' + ${JSON.stringify(v)}`).join(' + \"\\n\" + ')}
+            ].join('\\n');
+            var text = '--- Extracted Document Details ---\\n' + details + '\\n---';
+            navigator.clipboard ? navigator.clipboard.writeText(text).then(() => {
+              btn.textContent = '✅ All Details Copied!';
+              btn.style.background = '#10b981';
+              setTimeout(() => { btn.textContent = '📋 Copy All Extracted Details'; btn.style.background = '#003082'; }, 2200);
+            }) : null;
+          })(this)"
+          style="width:100%;margin-top:8px;padding:9px 14px;background:#003082;color:#fff;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+          📋 ${t('btnCopyAll', lang)}
+        </button>
+
+        <!-- Portal Navigation Links -->
+        <div style="margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px;">
+          <div style="font-size:10.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">
+            🔗 ${t('ocrPortalLinksHeading', lang)}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+            <a href="grievance-redressal.html" style="display:flex;align-items:center;gap:6px;padding:7px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:7px;font-size:11px;font-weight:700;color:#c2410c;text-decoration:none;">
+              <span>📝</span> <span>${t('btnGrievancePortal', lang)}</span>
+            </a>
+            <a href="verify-licence.html" style="display:flex;align-items:center;gap:6px;padding:7px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;font-size:11px;font-weight:700;color:#1d4ed8;text-decoration:none;">
+              <span>🔍</span> <span>${t('btnVerifyPortal', lang)}</span>
+            </a>
+            <a href="standards-search.html" style="display:flex;align-items:center;gap:6px;padding:7px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;font-size:11px;font-weight:700;color:#15803d;text-decoration:none;">
+              <span>📖</span> <span>${t('btnStandardsPortal', lang)}</span>
+            </a>
+            <a href="hallmarking.html" style="display:flex;align-items:center;gap:6px;padding:7px 10px;background:#fdf4ff;border:1px solid #e9d5ff;border-radius:7px;font-size:11px;font-weight:700;color:#7e22ce;text-decoration:none;">
+              <span>🔖</span> <span>${t('btnHallmarkingPortal', lang)}</span>
+            </a>
+          </div>
         </div>
       </div>
 
