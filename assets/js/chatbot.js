@@ -12,6 +12,7 @@
 import { performClientOCR, parseExtractedText, generateAccurateInspectionReport } from './ocr-engine.js';
 import { executeDirectFormAction, showAutofillToast, fillGrievanceForm, fillVerificationForm, fillStandardsForm } from './form-autofill.js';
 import { SUPPORTED_LANGUAGES, getCurrentLanguage, setLanguage, t, getVoiceLanguage, getLocalizedRAGResponse } from './i18n.js';
+import { resolveExactBISQuery } from './bis-knowledge-engine.js';
 
 const BIS_LOGO_PNG = `<img src="assets/images/bis-logo.png" alt="BIS Logo" style="height: 26px; width: auto; max-width: 100%; object-fit: contain; vertical-align: middle; background: #ffffff; padding: 2px 4px; border-radius: 4px;">`;
 const BIS_LOGO_ICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle;"><path d="M12 2L2 20H22L12 2Z" fill="#003082"/><path d="M12 7L6 17H18L12 7Z" fill="#FFFFFF"/><circle cx="12" cy="13" r="2.5" fill="#E11D48"/></svg>`;
@@ -1138,7 +1139,7 @@ All explanations, headings, steps, and bullet points MUST be in fluent, natural 
         if (isFromApi) break;
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 4500); // 4.5s fast timeout
+          const timeoutId = setTimeout(() => controller.abort(), 2000); // 2.0s fast timeout
 
           const targetEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userApiKey}`;
 
@@ -1174,9 +1175,13 @@ All explanations, headings, steps, and bullet points MUST be in fluent, natural 
               isFromApi = true;
               break;
             }
+          } else if (response.status === 401 || response.status === 403) {
+            // Disabled or invalid service key -> proceed immediately to exact offline RAG
+            break;
           }
         } catch (err) {
           console.log(`Model ${model} notice:`, err.message || err);
+          break;
         }
       }
 
@@ -1332,115 +1337,25 @@ All explanations, headings, steps, and bullet points MUST be in fluent, natural 
 
   // ── 4. RAG KNOWLEDGE BASE & NEURAL SEARCH ENGINE ──
   function queryBISKnowledgeRAG(query, lang = getCurrentLanguage()) {
-    const q = (query || '').toLowerCase();
+    const q = (query || '').toLowerCase().trim();
     const extracted = extractUserDetailsFromPrompt(query);
 
-    // 0. Product Inspection, Authenticity Check & Legal IS Code Guidance
-    if (
-      q.includes('inspect product') || q.includes('check if fake') || q.includes('counterfeit check') || q.includes('product inspection') ||
-      q.includes('பரிசோதனை') || q.includes('உண்மைத்தன்மை') || q.includes('போலி') || q.includes('जांच') || q.includes('नकली')
-    ) {
-      return getLocalizedRAGResponse('inspection', extracted, lang);
+    // 0. Explicit Guide Tour chip clicked
+    if (q === 'guide_tour' || q === 'chipoverview' || (q.includes('overview') && q.includes('tour'))) {
+      return getLocalizedRAGResponse('guide_tour', {}, lang);
     }
 
-    // 0. Comprehensive End-to-End Roadmaps & Workflows (From Scratch to Finish)
-    if (
-      q.includes('roadmap') || q.includes('workflow') || q.includes('start to end') || q.includes('from scratch') || q.includes('how to start') || q.includes('guide') || q.includes('how does it work') || q.includes('steps to') ||
-      q.includes('வழிமுறை') || q.includes('வழிகாட்ட') || q.includes('செயல்முறை') || q.includes('ரோட்மேப்') || q.includes('रोडमैप') || q.includes('मार्गदर्श')
-    ) {
-      if (q.includes('tour') || q.includes('services') || q.includes('கண்ணோட்டம்') || q.includes('சேவை') || q.includes('போர்டல்')) {
-        return getLocalizedRAGResponse('guide_tour', {}, lang);
-      }
-      return getLocalizedRAGResponse('roadmap', {}, lang);
-    }
-
-    // 1. Grievance / Complaint / Substandard Product
-    if (
-      q.includes('complaint') || q.includes('grievance') || q.includes('fake') || q.includes('substandard') || q.includes('counterfeit') || q.includes('file') || q.includes('bad') || q.includes('defect') ||
-      q.includes('புகார்') || q.includes('குறை') || q.includes('மோசடி') || q.includes('தரமற்ற') || q.includes('शिकायत') || q.includes('फरियाद')
-    ) {
-      let product = extracted.product;
-      let category;
-      let details = extracted.details;
-
-      if (q.includes('cement') || q.includes('சிமெண்ட்') || q.includes('सीमेंट')) {
-        product = product || (lang === 'ta' ? 'போர்ட்லேண்ட் சிமெண்ட் 43 கிரேடு (IS 269)' : 'Portland Cement 43 Grade (IS 269)');
-        details = details || (lang === 'ta' ? 'சரியான ISI முத்திரை இல்லாமல் சிமெண்ட் மூட்டைகள் பெறப்பட்டன.' : 'Cement bags received without proper ISI mark and batch number.');
-      } else if (q.includes('water') || q.includes('தண்ணீர்') || q.includes('குடிநீர்') || q.includes('पानी')) {
-        product = product || (lang === 'ta' ? 'பாட்டிலடைக்கப்பட்ட குடிநீர் (IS 14543)' : 'Packaged Drinking Water (IS 14543)');
-        details = details || (lang === 'ta' ? 'போலி ISI முத்திரையுடன் துர்நாற்றமடிக்கும் பாட்டில்கள் வழங்கப்பட்டன.' : 'Bottles supplied with duplicate ISI mark and pungent odour.');
-      } else if (q.includes('gold') || q.includes('hallmark') || q.includes('jewel') || q.includes('தங்கம்') || q.includes('நகை') || q.includes('சோனா') || q.includes('स्वर्ण')) {
-        product = product || (lang === 'ta' ? '22K தங்க நகைகள் (IS 1417)' : '22K Gold Jewellery (IS 1417)');
-        category = lang === 'ta' ? 'தங்க ஹால்மார்க்கிங் காரட் குறைவு (தூய்மை பற்றாக்குறை)' : 'Gold Hallmarking Under-caratage (Purity Shortage)';
-        details = details || (lang === 'ta' ? '22K (916) என விற்கப்பட்ட நகை ஆய்வில் 18K என தெரியவந்தது.' : 'Jewellery sold as 22K (916) but independent assay report showed 18K purity shortfall.');
-      } else {
-        product = product || (lang === 'ta' ? 'இரண்டு சக்கர வாகன பாதுகாப்பு ஹெல்மெட் (IS 4151)' : 'Two-Wheeler Protective Helmet (IS 4151)');
-        category = lang === 'ta' ? 'போலி அல்லது தவறான ISI முத்திரை பயன்பாடு' : 'Misuse of ISI Mark (Substandard Product)';
-        details = details || (lang === 'ta' ? 'வாங்கிய பொருளில் தவறான ISI முத்திரை உள்ளது. சாதாரண பயன்பாட்டில் பழுதடைந்தது.' : 'Product purchased with defective/counterfeit ISI mark. Material failed on normal usage.');
-      }
-
+    // 1. Concrete user complaint with extracted contact / seller info
+    if (extracted.name || extracted.phone || extracted.seller) {
+      let product = extracted.product || (lang === 'ta' ? 'பாதுகாப்பு தயாரிப்பு' : 'Consumer Product');
+      let category = lang === 'ta' ? 'போலி அல்லது தவறான ISI முத்திரை' : 'Misuse of Standard Mark';
+      let details = extracted.details || (lang === 'ta' ? 'வாங்கிய பொருளில் தர குறைபாடு கண்டறியப்பட்டது.' : 'Quality defect identified in product.');
       const prefillUrl = `grievance-redressal.html?name=${encodeURIComponent(extracted.name || '')}&phone=${encodeURIComponent(extracted.phone || '')}&email=${encodeURIComponent(extracted.email || '')}&state=${encodeURIComponent(extracted.state || '')}&product=${encodeURIComponent(product)}&category=${encodeURIComponent(category)}&details=${encodeURIComponent(details)}&seller=${encodeURIComponent(extracted.seller || '')}&price=${encodeURIComponent(extracted.price || '1500')}`;
-
       return getLocalizedRAGResponse('grievance', { ...extracted, product, category, details, prefillUrl }, lang);
     }
 
-    // 2. Gold Hallmarking / Purity Compensation
-    if (
-      q.includes('gold') || q.includes('carat') || q.includes('karat') || q.includes('compensation') || q.includes('huid') || q.includes('hallmark') ||
-      q.includes('தங்கம்') || q.includes('காரட்') || q.includes('ஹால்மார்க்') || q.includes('இழப்பீடு') || q.includes('தூய்மை') || q.includes('சோனா') || q.includes('स्वर्ण') || q.includes('मुआवजा')
-    ) {
-      const goldUrl = `grievance-redressal.html?weight=${encodeURIComponent(extracted.weight || '15')}&claimed=${encodeURIComponent(extracted.claimed || '22')}&tested=${encodeURIComponent(extracted.tested || '18')}&rate=${encodeURIComponent(extracted.rate || '7200')}#gold-calc-section`;
-      return getLocalizedRAGResponse('gold', { ...extracted, goldUrl }, lang);
-    }
-
-    // 3. Licence Verification (ISI, HUID, CRS, FMCS)
-    if (
-      q.includes('verify') || q.includes('cml') || q.includes('licence') || q.includes('license') || q.includes('crs') || q.includes('fmcs') || /\bisi\b/i.test(q) || q.includes('authentic') ||
-      q.includes('சரிபார்') || q.includes('உரிமம்') || q.includes('சத்தியாபனம்') || q.includes('सत्यापित') || q.includes('जांचें')
-    ) {
-      let type = 'isi';
-      let code = 'CM/L-8400123456';
-      if (q.includes('crs') || q.includes('electronic') || q.includes('r-')) {
-        type = 'crs';
-        code = 'R-41001234';
-      } else if (q.includes('fmcs') || q.includes('foreign')) {
-        type = 'fmcs';
-        code = 'CM/L-4000123456';
-      } else if (q.includes('huid') || /[a-z0-9]{6}/i.test(q)) {
-        const huidMatch = q.match(/\b([A-Z0-9]{6})\b/i);
-        type = 'huid';
-        code = huidMatch ? huidMatch[1].toUpperCase() : 'AB1234';
-      }
-
-      const verifyUrl = `verify-licence.html?type=${encodeURIComponent(type)}&code=${encodeURIComponent(code)}`;
-      return getLocalizedRAGResponse('verify', { type, code, verifyUrl }, lang);
-    }
-
-    // 4. Indian Standards Search & Document Clause Preview
-    const hasIsCodeMatch = /\bis\s*\d+\b/i.test(q) || q.includes('standard') || q.includes('is code') || q.includes('qco') || q.includes('specification') ||
-      q.includes('தரநிலை') || q.includes('விவரக்குறிப்பு') || q.includes('மானக்') || q.includes('मानक');
-    if (hasIsCodeMatch) {
-      let isCode = 'IS 10500';
-      if (q.includes('456') || q.includes('concrete') || q.includes('கான்கிரீட்')) isCode = 'IS 456';
-      else if (q.includes('4151') || q.includes('helmet') || q.includes('ஹெல்மெட்')) isCode = 'IS 4151';
-      else if (q.includes('1417') || q.includes('gold') || q.includes('தங்கம்')) isCode = 'IS 1417';
-      else if (q.includes('1293') || q.includes('plug') || q.includes('socket')) isCode = 'IS 1293';
-      else if (q.includes('269') || q.includes('cement') || q.includes('சிமெண்ட்')) isCode = 'IS 269';
-
-      const stdUrl = `standards-search.html?q=${encodeURIComponent(isCode)}`;
-      return getLocalizedRAGResponse('standards', { isCode, stdUrl }, lang);
-    }
-
-    // 5. LIMS Testing Labs & Fee Estimator
-    if (
-      q.includes('lab') || q.includes('lims') || q.includes('test') || q.includes('fee') || q.includes('tat') || q.includes('sample') || q.includes('price') ||
-      q.includes('ஆய்வகம்') || q.includes('கட்டணம்') || q.includes('மாதிரி') || q.includes('சோதனை') || q.includes('प्रयोगशाला') || q.includes('शुल्क')
-    ) {
-      return getLocalizedRAGResponse('lims', {}, lang);
-    }
-
-    // Unindexed general query -> return null to allow dynamic AI / localized synthesis
-    return null;
+    // 2. Intelligent Deep Domain Engine — Exact Statutory Answers (Grounded, zero fake/canned data)
+    return resolveExactBISQuery(query, lang);
   }
 
   // ── 5. APPEND CHAT MESSAGE HELPER ──

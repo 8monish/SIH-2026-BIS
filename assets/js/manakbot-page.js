@@ -6,6 +6,7 @@
 import { performClientOCR, parseExtractedText, generateAccurateInspectionReport } from './ocr-engine.js';
 import { executeDirectFormAction, showAutofillToast } from './form-autofill.js';
 import { SUPPORTED_LANGUAGES, getCurrentLanguage, setLanguage, t, getVoiceLanguage, renderLanguageSelector, updatePageDOMTranslations, getLocalizedRAGResponse } from './i18n.js';
+import { resolveExactBISQuery } from './bis-knowledge-engine.js';
 
 export function initManakBotPage() {
   const chatContainer = document.querySelector('.studio-chat-container');
@@ -450,6 +451,7 @@ export function initManakBotPage() {
 
     let botReply = '';
     let suggestions = [];
+    let actions = [];
 
     try {
       botReply = await callLiveFreeLLMAPI(text);
@@ -458,11 +460,12 @@ export function initManakBotPage() {
       const responseObj = getStudioBotResponse(text);
       botReply = responseObj.text;
       suggestions = responseObj.suggestions;
+      actions = responseObj.actions || [];
     }
 
     setTimeout(() => {
       removeStudioTyping();
-      appendStudioMessage(botReply, 'bot', suggestions);
+      appendStudioMessage(botReply, 'bot', suggestions, actions);
       speakText(botReply);
     }, 400);
   }
@@ -626,128 +629,36 @@ You MUST formulate your entire response EXCLUSIVELY in ${langObj.name} (${langOb
     if (existing) existing.remove();
   }
 
-  // 6. Offline BIS Intelligence Engine
+  // 6. Deep Grounded BIS Intelligence Engine
   function getStudioBotResponse(userInput) {
     const currentLang = getCurrentLanguage();
-    const query = userInput.toLowerCase();
+    const query = (userInput || '').toLowerCase();
 
-    // Product Inspection & Genuine / Counterfeit Verification
-    if (query.includes('fake') || query.includes('genuine') || query.includes('is it real') || query.includes('apply for legal') || query.includes('legal is code') || query.includes('how to proceed with this product') || query.includes('inspect product') || query.includes('counterfeit check') || query.includes('check product') || query.includes('check if fake') || query.includes('product inspection') || query.includes('பரிசோதனை') || query.includes('போலி') || query.includes('जांच')) {
-      const parsed = parseExtractedText(userInput, 'Text Query');
+    // Check if user uploaded text has parsed licence details
+    const parsed = parseExtractedText(userInput, 'Text Query');
+    if ((query.includes('fake') || query.includes('inspect') || query.includes('பரிசோதனை')) && (parsed.standard || parsed.cml || parsed.huid || parsed.crs)) {
       if (currentLang !== 'en') {
         return getLocalizedRAGResponse('inspection', { parsed }, currentLang);
       }
-      if (parsed.standard || parsed.cml || parsed.huid || parsed.crs) {
-        return {
-          text: `**BIS Statutory Inspection & Verification Analysis**:\n\n` +
-            (parsed.product ? `• **Identified Category**: **${parsed.product}**\n` : '') +
-            (parsed.brand ? `• **Brand / Manufacturer**: ${parsed.brand}\n` : '') +
-            (parsed.standard ? `• **Statutory Standard**: **${parsed.standard}** (*${parsed.standardTitle || 'Indian Standard'}*)\n` : '') +
-            (parsed.cml ? `• **Claimed CM/L Licence**: \`${parsed.cml}\`\n` : '') +
-            (parsed.huid ? `• **Claimed Hallmark HUID**: \`${parsed.huid}\`\n` : '') +
-            `\nUse the buttons below to verify this licence directly in the e-Verification registry, search the standards catalog, or submit a formal grievance.`,
-          suggestions: ['Verify Licence on Portal', 'Search Standards Catalog', 'File Consumer Grievance'],
-          actions: [
-            { text: '🔍 Verify Licence', url: `verify-licence.html?type=${parsed.huid ? 'huid' : 'isi'}&code=${encodeURIComponent(parsed.cml || parsed.huid || '')}` },
-            { text: '📖 Standards Catalog', url: `standards-search.html?q=${encodeURIComponent((parsed.standard || '').split(':')[0])}` },
-            { text: '📝 File Grievance', url: 'grievance-redressal.html' }
-          ]
-        };
-      }
       return {
-        text: `**BIS Authentic Product & Anti-Counterfeit Verification**:\n\nTo inspect a physical product label or document:\n• Click the **Upload (📎)** button above to scan an image or document.\n• The **Real Vision OCR engine** will read the actual text, identify statutory IS Codes, CM/L numbers, and HUID marks, and allow **1-Click Autofill** directly into respective forms without fake data.\n• Alternatively, if you already have the 10-digit CM/L or 6-digit HUID number, verify it directly on our e-Verification suite.`,
-        suggestions: ['Verify ISI License Number', 'Verify 6-digit HUID', 'Search Standards Catalog', 'File Consumer Grievance'],
+        text: `**BIS Statutory Inspection & Verification Analysis**:\n\n` +
+          (parsed.product ? `• **Identified Category**: **${parsed.product}**\n` : '') +
+          (parsed.brand ? `• **Brand / Manufacturer**: ${parsed.brand}\n` : '') +
+          (parsed.standard ? `• **Statutory Standard**: **${parsed.standard}** (*${parsed.standardTitle || 'Indian Standard'}*)\n` : '') +
+          (parsed.cml ? `• **Claimed CM/L Licence**: \`${parsed.cml}\`\n` : '') +
+          (parsed.huid ? `• **Claimed Hallmark HUID**: \`${parsed.huid}\`\n` : '') +
+          `\nUse the buttons below to verify this licence directly in the e-Verification registry, search the standards catalog, or submit a formal grievance.`,
+        suggestions: ['Verify Licence on Portal', 'Search Standards Catalog', 'File Consumer Grievance'],
         actions: [
-          { text: '🔍 e-Verification Portal', url: 'verify-licence.html' },
-          { text: '📖 Standards Catalog', url: 'standards-search.html' },
-          { text: '📝 Consumer Grievance', url: 'grievance-redressal.html' }
-        ]
-      };
-    }
-
-    if (query.includes('roadmap') || query.includes('workflow') || query.includes('start to end') || query.includes('from scratch') || query.includes('how to start') || query.includes('guide') || query.includes('step') || query.includes('வழிமுறை') || query.includes('ரோட்மேப்') || query.includes('செயல்முறை')) {
-      if (currentLang !== 'en') {
-        return getLocalizedRAGResponse('roadmap', {}, currentLang);
-      }
-      return {
-        text: `**Official Bureau of Indian Standards (BIS) End-to-End Operational Roadmaps**:\n\nHere is your step-by-step guide from start to finish:\n\n---\n\n### 🏭 **Roadmap 1: Manufacturer ISI Mark (CM/L) Certification (From Scratch)**\n1. **Standard Identification**: Search your product on our [Standards Catalog](standards-search.html) to locate the applicable IS Code (e.g. IS 10500 for Water, IS 456 for Concrete, IS 4151 for Helmets).\n2. **In-House Testing Setup**: Align your factory with the Scheme of Testing and Inspection (STI) & calibrate test apparatus.\n3. **Pre-Commissioning Lab Benchmark**: Query our [LIMS Lab Directory](lims-lab-directory.html) to locate an accredited test lab and estimate turnaround fees.\n4. **Digital Application**: Submit Form-I on [Manakonline Portal](https://www.manakonline.in) with factory layout and test records.\n5. **Factory Audit**: Designated BIS Technical Officer inspects the plant and draws independent samples.\n6. **Grant of 10-Digit CM/L Licence**: Receive your official CM/L number, verifiable in real time.\n\n---\n\n### 🛡️ **Roadmap 2: Consumer Grievance & Substandard Product Redressal**\n1. **Verify Label Authenticity**: Check the 10-digit CM/L or 6-digit HUID on our [e-Verification Suite](verify-licence.html).\n2. **Gather Proof**: Photograph defective item, invoice/receipt, and packaging label.\n3. **Register Grievance**: Complete our 4-step wizard on [Consumer Redressal](grievance-redressal.html) to receive a 16-character tracking docket ID (\`BIS-GR-2026-XXXX\`).\n4. **Surveillance & Raid**: BIS Enforcement Officers execute market raids and seize substandard inventory under Section 28 & 29 of the BIS Act, 2016.\n5. **Redressal & Compensation**: Track real-time progress until compensation or replacement is disbursed.\n\n---\n\n### 💍 **Roadmap 3: Gold Jewellery Purity Verification & 2x Compensation**\n1. **Check 3 Hallmarks**: Verify BIS Logo, Purity (e.g. 22K916), and 6-digit HUID on [e-Verification](verify-licence.html).\n2. **Independent Assaying**: Locate an official centre on [Assaying & Hallmarking Centres](hallmarking-centres.html) for touchstone/XRF test.\n3. **Calculate Statutory Compensation**: Enter weights on our [Gold Calculator](grievance-redressal.html#gold-calc-section) for **2x shortfall penalty** + ₹500 assay refund.\n4. **File Claim**: Submit assay certificate for statutory recovery.`,
-        suggestions: ['Start Manufacturer Roadmap', 'File a Complaint Now', 'Verify 6-digit HUID', 'Search Standards Catalog'],
-        actions: [
-          { text: '🔍 e-Verification Portal', url: 'verify-licence.html' },
-          { text: '📖 Standards Catalog', url: 'standards-search.html' },
-          { text: '📝 Consumer Grievance', url: 'grievance-redressal.html' }
-        ]
-      };
-    }
-
-    if (query.includes('isi') || query.includes('mark') || query.includes('product cert') || query.includes('cml') || query.includes('சரிபார்') || query.includes('உரிமம்')) {
-      if (currentLang !== 'en') {
-        return getLocalizedRAGResponse('verify', { code: 'CM/L-8400123456', type: 'isi' }, currentLang);
-      }
-      return {
-        text: `**BIS Product Certification (ISI Mark)**:\n\n• **Grant Process**: Apply online via the [Manakonline Portal](https://www.manakonline.in).\n• **Timeline**: Standard procedure takes 60-90 days; **Simplified Scheme** grants license within 30 days based on verified factory test report.\n• **Audit & Surveillance**: Periodic surprise factory audits and market sample seizures ensure uncompromising product quality.\n• **Statistics**: Over **41,000+ active licenses** across 1,000+ products.`,
-        suggestions: ['Verify an ISI License Number', 'Mandatory QCO Products List', 'Application Fee Structure'],
-        actions: [
-          { text: '🔍 Verify ISI Licence', url: 'verify-licence.html?type=isi' },
-          { text: '📖 Standards Catalog', url: 'standards-search.html' }
-        ]
-      };
-    }
-
-    if (query.includes('hallmark') || query.includes('gold') || query.includes('huid') || query.includes('silver') || query.includes('தங்கம்') || query.includes('ஹால்மார்க்')) {
-      if (currentLang !== 'en') {
-        return getLocalizedRAGResponse('gold', {}, currentLang);
-      }
-      return {
-        text: `**Gold & Silver Hallmarking (HUID)**:\n\n• **Mandatory Coverage**: Compulsory gold hallmarking is active across 343+ Indian districts.\n• **3 Mandatory Marks on Gold**:\n  1. **BIS Standard Logo** (Triangle mark)\n  2. **Purity / Fineness Grade** (e.g. 22K916, 18K750, 14K585)\n  3. **6-Digit Alphanumeric HUID** (Unique to each individual jewellery piece)\n• **Verification**: Enter the 6-character HUID on our [e-Verification Portal](verify-licence.html) or BIS CARE App.`,
-        suggestions: ['Verify 6-digit HUID', 'Find Hallmarking Centres Near Me', 'Calculate Under-Caratage Compensation'],
-        actions: [
-          { text: '🔍 Verify HUID', url: 'verify-licence.html?type=huid' },
-          { text: '📍 Hallmarking Centres', url: 'hallmarking-centres.html' },
-          { text: '⚖️ Gold Calculator', url: 'grievance-redressal.html#gold-calc-section' }
-        ]
-      };
-    }
-
-    if (query.includes('standard') || query.includes('is code') || query.includes('download') || query.includes('தரநிலை') || query.includes('விவரக்குறிப்பு')) {
-      if (currentLang !== 'en') {
-        return getLocalizedRAGResponse('standards', { isCode: 'IS 10500' }, currentLang);
-      }
-      return {
-        text: `**Indian Standards (IS Codes) Catalog**:\n\n• BIS has formulated over **22,000+ Indian Standards** across 15 technical divisions.\n• All published standards are accessible for **FREE preview** by citizens on our [Standards Search Portal](standards-search.html).\n• Examples: *IS 10500* (Drinking Water), *IS 456* (Concrete), *IS 4151* (Helmets), *IS 1293* (Electrical Plugs).`,
-        suggestions: ['Search IS 10500 Water Standard', 'Search IS 456 Concrete', 'Draft Standards for Review'],
-        actions: [
-          { text: '📖 Standards Catalog', url: 'standards-search.html' }
-        ]
-      };
-    }
-
-    if (query.includes('complaint') || query.includes('fraud') || query.includes('grievance') || query.includes('புகார்') || query.includes('குறைதீர்ப்பு')) {
-      if (currentLang !== 'en') {
-        return getLocalizedRAGResponse('grievance', {}, currentLang);
-      }
-      return {
-        text: `**Consumer Grievance & Redressal**:\n\n• You can register a formal complaint against substandard goods or counterfeit ISI/hallmark marks via our [Grievance Redressal Portal](grievance-redressal.html).\n• You will receive an instant tracking docket (e.g. *BIS-GR-2026-1048*).\n• Under BIS Act 2016, consumers are entitled to **2x financial compensation** for gold purity discrepancies!`,
-        suggestions: ['File a Complaint Now', 'Track Existing Grievance Docket', 'Helpline Toll-Free Number'],
-        actions: [
+          { text: '🔍 Verify Licence', url: `verify-licence.html?type=${parsed.huid ? 'huid' : 'isi'}&code=${encodeURIComponent(parsed.cml || parsed.huid || '')}` },
+          { text: '📖 Standards Catalog', url: `standards-search.html?q=${encodeURIComponent((parsed.standard || '').split(':')[0])}` },
           { text: '📝 File Grievance', url: 'grievance-redressal.html' }
         ]
       };
     }
 
-    if (currentLang !== 'en') {
-      return getLocalizedRAGResponse('general', { query: userInput }, currentLang);
-    }
-
-    return {
-      text: `Hello! I am **ManakBot AI Studio Assistant**, the official intelligent agent for the **Bureau of Indian Standards (BIS)**.\n\nI am grounded in official BIS domain knowledge to assist you with:\n• **Product Certification (ISI Mark & CM/L)**\n• **Gold Hallmarking (6-digit HUID Verification)**\n• **Search 22,000+ Indian Standards (IS Codes)**\n• **Consumer Grievance Portal & 2x Compensation**\n• **LIMS Apex Testing Laboratories Network**\n\nHow may I assist your compliance or verification requirement today?`,
-      suggestions: ['How to get ISI Mark?', 'Verify Gold Hallmark', 'Indian Standards Search', 'Register Consumer Complaint'],
-      actions: [
-        { text: '🔍 Verify Licence', url: 'verify-licence.html' },
-        { text: '📖 Standards Catalog', url: 'standards-search.html' },
-        { text: '📝 Consumer Grievance', url: 'grievance-redressal.html' }
-      ]
-    };
+    // Resolve exact statutory domain question using deep BIS engine
+    return resolveExactBISQuery(userInput, currentLang);
   }
 
   // 7. Prompt Deck Clicks

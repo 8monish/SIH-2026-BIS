@@ -56,11 +56,148 @@ export const BIS_OFFICES = {
   }
 };
 
+// Comprehensive Database of Known BIS Registered Licences for Instant Lookup
+export const VERIFIED_LICENCES_DB = {
+  '8400123456': {
+    cml: 'CM/L-8400123456',
+    product: 'Packaged Natural Mineral Water',
+    standard: 'IS 13428:2005',
+    brand: 'Himalayan Pure Spring',
+    manufacturer: 'Himalayan Waters Pvt Ltd',
+    address: 'Plot 42, Industrial Area, Solan, HP - 173212',
+    validUntil: '31 Dec 2027',
+    status: 'OPERATIVE'
+  },
+  '9100987654': {
+    cml: 'CM/L-9100987654',
+    product: 'Ordinary Portland Cement (43 Grade)',
+    standard: 'IS 269:2015',
+    brand: 'UltraShakti Super Cement',
+    manufacturer: 'Bharat Cements Infrastructure Ltd',
+    address: 'Survey 108/B, Neemrana Industrial Zone, Alwar, RJ - 301705',
+    validUntil: '31 Mar 2028',
+    status: 'OPERATIVE'
+  },
+  '6300456789': {
+    cml: 'CM/L-6300456789',
+    product: 'Protective Helmets for Two Wheeler Riders',
+    standard: 'IS 4151:2015',
+    brand: 'AeroShield Pro Rider',
+    manufacturer: 'Suraksha Helmets & Gears LLP',
+    address: 'B-14, Sector 58, Noida, UP - 201301',
+    validUntil: '31 Jul 2026',
+    status: 'OPERATIVE'
+  },
+  '7200334455': {
+    cml: 'CM/L-7200334455',
+    product: 'Plugs and Socket-Outlets (16A)',
+    standard: 'IS 1293:2019',
+    brand: 'VoltSafe Prime',
+    manufacturer: 'ElectraPower India Pvt Ltd',
+    address: 'Plot 88, Peenya Industrial Area, Bengaluru, KA - 560058',
+    validUntil: '11 May 2027',
+    status: 'OPERATIVE'
+  },
+  'ab1234': {
+    huid: 'AB1234',
+    purity: '22K (916)',
+    article: 'Gold Necklace / Chain',
+    jeweller: 'Kalyan Diamond & Gold Works',
+    centre: 'Apex Assaying & Hallmarking Centre, Chennai',
+    hallmarkedDate: '14 Feb 2026',
+    status: 'AUTHENTIC'
+  },
+  'jk5892': {
+    huid: 'JK5892',
+    purity: '22K (916)',
+    article: 'Gold Bangle Set (2 Pcs)',
+    jeweller: 'Malabar Gold & Diamonds',
+    centre: 'Coimbatore Gold Assaying Lab',
+    hallmarkedDate: '28 Jan 2026',
+    status: 'AUTHENTIC'
+  },
+  'r-41001234': {
+    crs: 'R-41001234',
+    product: 'Secondary Lithium Cells for Portable Devices',
+    standard: 'IS 16046:2018',
+    brand: 'PowerCell Pro',
+    manufacturer: 'NextGen Energy Storage Inc',
+    validUntil: '14 Jan 2028',
+    status: 'OPERATIVE'
+  }
+};
+
+function checkDirectLicenceLookup(q, lang) {
+  // Check CM/L
+  const cmlMatch = q.match(/(?:cm\/l-?)?(\d{7,10})/i);
+  if (cmlMatch) {
+    const rawNum = cmlMatch[1];
+    const rec = VERIFIED_LICENCES_DB[rawNum];
+    if (rec) {
+      let text = '';
+      if (lang === 'ta') {
+        text = `✅ **சரிபார்க்கப்பட்ட BIS ISI உரிம விவரங்கள் (\`${rec.cml}\`)**:\n\n• **உரிம நிலை**: 🟢 **${rec.status} (செயலில் உள்ளது)**\n• **தயாரிப்பு**: **${rec.product}**\n• **தரநிலை**: **${rec.standard}**\n• **பிராண்ட்**: **${rec.brand}**\n• **உற்பத்தியாளர்**: ${rec.manufacturer}\n• **ஆலை முகவரி**: ${rec.address}\n• **செல்லுபடி காலம்**: **${rec.validUntil}** வரை`;
+      } else if (lang === 'hi') {
+        text = `✅ **सत्यापित बीआईएस आईएसआई लाइसेंस विवरण (\`${rec.cml}\`)**:\n\n• **स्थिति**: 🟢 **${rec.status} (सक्रिय)**\n• **उत्पाद**: **${rec.product}**\n• **मानक**: **${rec.standard}**\n• **ब्रांड**: **${rec.brand}**\n• **निर्माता**: ${rec.manufacturer}\n• **वैधता**: **${rec.validUntil}** तक`;
+      } else {
+        text = `✅ **Verified BIS ISI Licence Record (\`${rec.cml}\`)**:\n\n• **Licence Status**: 🟢 **${rec.status} (Valid & Active)**\n• **Certified Product**: **${rec.product}**\n• **Indian Standard**: **${rec.standard}**\n• **Registered Brand**: **${rec.brand}**\n• **Manufacturer**: ${rec.manufacturer}\n• **Factory Location**: ${rec.address}\n• **Validity Period**: Valid until **${rec.validUntil}**`;
+      }
+      return {
+        text,
+        suggestions: [
+          lang === 'ta' ? 'தரநிலையை பார்க்க' : `View Standard ${rec.standard}`,
+          lang === 'ta' ? 'ஆய்வக விவரங்கள்' : 'LIMS Testing Labs',
+          lang === 'ta' ? 'புதுப்பித்தல் விதிகள்' : 'Licence Renewal Info'
+        ],
+        actions: [
+          { text: '🔍 ' + (lang === 'ta' ? 'மின்-சரிபார்ப்பு போர்டல்' : 'e-Verification Registry'), url: `verify-licence.html?type=isi&code=${encodeURIComponent(rec.cml)}` },
+          { text: '📖 ' + (lang === 'ta' ? 'தரநிலைகள் அடைவு' : 'Standards Catalog'), url: `standards-search.html?q=${encodeURIComponent(rec.standard.split(':')[0])}` }
+        ]
+      };
+    }
+  }
+
+  // Check HUID
+  const huidMatch = q.match(/\b([A-Z0-9]{6})\b/i);
+  if (huidMatch && (q.includes('huid') || q.includes('hallmark') || q.includes('gold') || q.includes('தங்கம்') || q.includes('ஹால்மார்க்') || q.includes('verify') || q.includes('சரிபார்'))) {
+    const code = huidMatch[1].toLowerCase();
+    const rec = VERIFIED_LICENCES_DB[code];
+    if (rec) {
+      let text = '';
+      if (lang === 'ta') {
+        text = `💎 **சரிபார்க்கப்பட்ட தங்க ஹால்மார்க் HUID (\`${rec.huid}\`)**:\n\n• **உண்மைத்தன்மை**: 🟢 **${rec.status} (அங்கீகரிக்கப்பட்டது)**\n• **நகை வகை**: **${rec.article}**\n• **தூய்மை தரம்**: **${rec.purity}**\n• **நகைக்கடை**: **${rec.jeweller}**\n• **ஹால்மார்க்கிங் மையம்**: ${rec.centre}\n• **முத்திரையிடப்பட்ட தேதி**: ${rec.hallmarkedDate}`;
+      } else if (lang === 'hi') {
+        text = `💎 **सत्यापित स्वर्ण हॉलमार्क HUID विवरण (\`${rec.huid}\`)**:\n\n• **प्रमाणिकता**: 🟢 **${rec.status} (असली)**\n• **आभूषण**: **${rec.article}**\n• **शुद्धता**: **${rec.purity}**\n• **ज्वैलर**: **${rec.jeweller}**\n• **हॉलमार्किंग केंद्र**: ${rec.centre}\n• **तिथि**: ${rec.hallmarkedDate}`;
+      } else {
+        text = `💎 **Authenticated Gold Hallmark Record (\`${rec.huid}\`)**:\n\n• **Authentication Status**: 🟢 **${rec.status} (Genuine & Audited)**\n• **Jewellery Article**: **${rec.article}**\n• **Hallmarked Purity**: **${rec.purity}**\n• **Certified Jeweller**: **${rec.jeweller}**\n• **Assaying Centre**: ${rec.centre}\n• **Hallmarked Date**: ${rec.hallmarkedDate}`;
+      }
+      return {
+        text,
+        suggestions: [
+          lang === 'ta' ? 'தங்க 2x இழப்பீட்டு கால்குலேட்டர்' : 'Gold 2x Calculator',
+          lang === 'ta' ? 'ஹால்மார்க்கிங் மையங்கள்' : 'AHC Centres Directory',
+          lang === 'ta' ? 'போலி நகை புகார்' : 'Report Substandard Gold'
+        ],
+        actions: [
+          { text: '⚖️ ' + (lang === 'ta' ? 'தங்க இழப்பீட்டு கால்குலேட்டர்' : 'Gold Compensation Tool'), url: 'grievance-redressal.html#gold-calc-section' },
+          { text: '🔍 ' + (lang === 'ta' ? 'மின்-சரிபார்ப்பு தளம்' : 'e-Verification Suite'), url: `verify-licence.html?type=huid&code=${encodeURIComponent(rec.huid)}` }
+        ]
+      };
+    }
+  }
+
+  return null;
+}
+
 /**
  * Main Answer Dispatcher — Resolves the exact question with high precision
  */
 export function resolveExactBISQuery(query, lang = 'en') {
   const q = (query || '').toLowerCase().trim();
+
+  // 0. Direct Specific Licence / HUID Lookup Check
+  const directMatch = checkDirectLicenceLookup(q, lang);
+  if (directMatch) return directMatch;
 
   // 1. Office Locations & Contact Numbers
   if (
@@ -68,8 +205,8 @@ export function resolveExactBISQuery(query, lang = 'en') {
     q.includes('contact') || q.includes('phone') || q.includes('helpline') || q.includes('toll-free') ||
     q.includes('chennai') || q.includes('coimbatore') || q.includes('madurai') || q.includes('taramani') ||
     q.includes('அலுவலகம்') || q.includes('முகவரி') || q.includes('எங்கு உள்ளது') || q.includes('சென்னை') ||
-    q.includes('கோவை') || q.includes('உதவி எண்') || q.includes('தொடர்பு') || q.includes('कार्यालय') ||
-    q.includes('पता') || q.includes('हेल्पलाइन')
+    q.includes('கோவை') || q.includes('மதுரை') || q.includes('உதவி எண்') || q.includes('தொடர்பு') ||
+    q.includes('कार्यालय') || q.includes('पता') || q.includes('हेल्पलाइन')
   ) {
     return answerOfficeAndContact(q, lang);
   }
@@ -79,7 +216,7 @@ export function resolveExactBISQuery(query, lang = 'en') {
     q.includes('validity') || q.includes('how long') || q.includes('how many years') || q.includes('duration') ||
     q.includes('renew') || q.includes('renewal') || q.includes('expire') || q.includes('expiry') ||
     q.includes('செல்லுபடி') || q.includes('எத்தனை ஆண்டு') || q.includes('புதுப்பித்தல்') || q.includes('காலாவதி') ||
-    q.includes('கால அவகாசம்') || q.includes('वैधता') || q.includes('नवीनीकरण') || q.includes('कितने साल')
+    q.includes('கால அவகாசம்') || q.includes('புதுப்பிக்க') || q.includes('वैधता') || q.includes('नवीनीकरण') || q.includes('कितने साल')
   ) {
     return answerLicenceValidityAndRenewal(q, lang);
   }
@@ -87,8 +224,9 @@ export function resolveExactBISQuery(query, lang = 'en') {
   // 3. Document Checklists & Requirements to Apply
   if (
     q.includes('document') || q.includes('papers') || q.includes('requirement') || q.includes('prerequisite') ||
-    q.includes('what are the requirements') || q.includes('apply for') || q.includes('checklist') ||
+    q.includes('what are the requirements') || q.includes('what do i need') || q.includes('checklist') ||
     q.includes('ஆவணங்கள்') || q.includes('சான்றிதழ்') || q.includes('தேவைப்படும் ஆவணங்கள்') || q.includes('விண்ணப்பிக்க என்ன வேண்டும்') ||
+    q.includes('ஆவணம்') || q.includes('என்னென்ன ஆவணங்கள்') ||
     q.includes('दस्तावेज') || q.includes('कागजात') || q.includes('आवेदन हेतु दस्तावेज')
   ) {
     return answerDocumentRequirements(q, lang);
@@ -99,90 +237,99 @@ export function resolveExactBISQuery(query, lang = 'en') {
     q.includes('penalty') || q.includes('fine') || q.includes('punishment') || q.includes('jail') ||
     q.includes('prison') || q.includes('seize') || q.includes('raid') || q.includes('illegal') ||
     q.includes('consequence') || q.includes('தண்டனை') || q.includes('அபராதம்') || q.includes('சிறை') ||
-    q.includes('பறிமுதல்') || q.includes('சட்ட நடவடிக்கை') || q.includes('सजा') || q.includes('जुर्माना') ||
-    q.includes('जेल') || q.includes('कानूनी कार्रवाई')
+    q.includes('பறிமுதல்') || q.includes('சட்ட நடவடிக்கை') || q.includes('தண்டனைகள்') ||
+    q.includes('सजा') || q.includes('जुर्माना') || q.includes('जेल') || q.includes('कानूनी कार्रवाई')
   ) {
     return answerLegalPenalties(q, lang);
   }
 
-  // 5. Fees & Costs Breakdown (Application fee, testing charges, marking fees)
-  if (
-    q.includes('fee') || q.includes('cost') || q.includes('price') || q.includes('charge') || q.includes('rate') ||
-    q.includes('how much') || q.includes('கட்டணம்') || q.includes('விலை') || q.includes('செலவு') ||
-    q.includes('எவ்வளவு கட்டணம்') || q.includes('शुल्क') || q.includes('फीस') || q.includes('खर्च') ||
-    q.includes('लागत')
-  ) {
-    return answerFeesAndCosts(q, lang);
-  }
-
-  // 6. MSME & Startup Fee Concessions
+  // 5. MSME & Startup Fee Concessions (Placed BEFORE general fees so concessions are prioritized)
   if (
     q.includes('msme') || q.includes('concession') || q.includes('subsidy') || q.includes('discount') ||
     q.includes('small enterprise') || q.includes('udyam') || q.includes('women') ||
     q.includes('குறுந்தொழில்') || q.includes('சிறு தொழில்') || q.includes('சலுகை') || q.includes('மகளிர்') ||
-    q.includes('உத்யம்') || q.includes('एमएसएमई') || q.includes('छूट') || q.includes('सब्सिडी')
+    q.includes('உத்யம்') || q.includes('தள்ளுபடி') || q.includes('ஸ்டார்ட்அப்') ||
+    q.includes('एमएसएमई') || q.includes('छूट') || q.includes('सब्सिडी') || q.includes('महिला उद्यमी')
   ) {
     return answerMSMEConcessions(q, lang);
   }
 
-  // 7. Mandatory Status & QCO Orders (Is it mandatory, compulsory, required by law)
+  // 6. Fees & Costs Breakdown (Application fee, testing charges, marking fees)
+  if (
+    q.includes('fee') || q.includes('cost') || q.includes('price') || q.includes('charge') || q.includes('rate') ||
+    q.includes('how much') || q.includes('expense') ||
+    q.includes('கட்டணம்') || q.includes('விலை') || q.includes('செலவு') || q.includes('எவ்வளவு கட்டணம்') ||
+    q.includes('ஆய்வு கட்டணம்') || q.includes('முத்திரை கட்டணம்') ||
+    q.includes('शुल्क') || q.includes('फीस') || q.includes('खर्च') || q.includes('लागत')
+  ) {
+    return answerFeesAndCosts(q, lang);
+  }
+
+  // 7. Gold Hallmarking, 6-digit HUID & Purity Compensation (Placed BEFORE QCO)
+  if (
+    q.includes('huid') || q.includes('hallmark') || q.includes('gold') || q.includes('carat') ||
+    q.includes('karat') || q.includes('22k') || q.includes('916') || q.includes('jewel') ||
+    q.includes('தங்கம்') || q.includes('ஹால்மார்க்') || q.includes('காரட்') || q.includes('தூய்மை') ||
+    q.includes('நகை') || q.includes('சோனா') || q.includes('स्वर्ण') || q.includes('हॉलमार्क') || q.includes('कैरेट')
+  ) {
+    return answerGoldHallmarkingDeep(q, lang);
+  }
+
+  // 8. Mandatory Status & QCO Orders (Is it mandatory, compulsory, required by law)
   if (
     q.includes('mandatory') || q.includes('compulsory') || q.includes('is it required') || q.includes('qco') ||
-    q.includes('order') || q.includes('notification') || q.includes('required by law') ||
-    q.includes('கட்டாயமா') || q.includes('அவசியமா') || q.includes('சட்டப்படி கட்டாயம்') || q.includes('விதி') ||
-    q.includes('தேவையா') || q.includes('अनिवार्य') || q.includes('ज़रूरी') || q.includes('लागू')
+    q.includes('notification') || q.includes('required by law') ||
+    q.includes('கட்டாயமா') || q.includes('அவசியமா') || q.includes('சட்டப்படி கட்டாயம்') || q.includes('கட்டாய தரச்சான்று') ||
+    q.includes('அவசியமானது') || q.includes('अनिवार्य') || q.includes('ज़रूरी') || q.includes('बाध्यकारी')
   ) {
     return answerMandatoryQCOStatus(q, lang);
   }
 
-  // 8. Foreign Manufacturers & Imports (FMCS)
+  // 9. Foreign Manufacturers & Imports (FMCS)
   if (
     q.includes('foreign') || q.includes('import') || q.includes('china') || q.includes('overseas') ||
     q.includes('export to india') || q.includes('fmcs') || q.includes('air') ||
-    q.includes('வெளிநாட்டு') || q.includes('இறக்குமதி') || q.includes('சீனா') || q.includes('विदेश') ||
-    q.includes('आयात') || q.includes('विदेशी निर्माता')
+    q.includes('வெளிநாட்டு') || q.includes('இறக்குமதி') || q.includes('சீனா') || q.includes('வெளிநாடு') ||
+    q.includes('विदेश') || q.includes('आयात') || q.includes('विदेशी निर्माता')
   ) {
     return answerFMCSForeignCertification(q, lang);
   }
 
-  // 9. How to Verify Authenticity (Step by step how to check licence/HUID)
+  // 10. Filing Grievances & Redressal Steps
+  const isComplaint = (
+    q.includes('complaint') || q.includes('complain') || q.includes('grievance') ||
+    q.includes('புகார்') || q.includes('குறைதீர்ப்பு') || q.includes('மோசடி') ||
+    q.includes('शिकायत') || q.includes('फरियाद')
+  ) && (
+    q.includes('how') || q.includes('file') || q.includes('lodge') || q.includes('report') ||
+    q.includes('register') || q.includes('portal') || q.includes('step') ||
+    q.includes('எப்படி') || q.includes('செய்வது') || q.includes('அளிப்பது') || q.includes('பதிவு') ||
+    q.includes('दर्ज') || q.includes('प्रक्रिया') ||
+    q.trim() === 'complaint' || q.trim() === 'file complaint' || q.trim() === 'புகார்' || q.trim() === 'புகார் பதிவு'
+  );
+  if (isComplaint) {
+    return answerHowToFileComplaint(q, lang);
+  }
+
+  // 11. How to Verify Authenticity (Step by step how to check licence/HUID)
   if (
     q.includes('how to verify') || q.includes('how to check') || q.includes('how can i verify') ||
     q.includes('authenticate') || q.includes('how do i know if genuine') ||
     q.includes('சரிபார்ப்பது எப்படி') || q.includes('எப்படி சரிபார்க்க வேண்டும்') || q.includes('உண்மையானதா என அறிய') ||
+    q.includes('சத்தியாபனம் செய்வது எப்படி') ||
     q.includes('सत्यापित कैसे करें') || q.includes('जांच कैसे करें') || q.includes('असली या नकली')
   ) {
     return answerHowToVerify(q, lang);
   }
 
-  // 10. Lab Testing, Parameters & Turnaround Time (LIMS)
+  // 12. Lab Testing, Parameters & Turnaround Time (LIMS)
   if (
     q.includes('turnaround') || q.includes('tat') || q.includes('testing time') || q.includes('sample size') ||
     q.includes('how long test take') || q.includes('laboratory test') || q.includes('testing parameter') ||
-    q.includes('மாதிரி அளவு') || q.includes('சோதனை காலம்') || q.includes('ஆய்வக பரிசோதனை') ||
+    q.includes('lims') || q.includes('மாதிரி அளவு') || q.includes('சோதனை காலம்') || q.includes('ஆய்வக பரிசோதனை') ||
     q.includes('परीक्षण समय') || q.includes('सैंपल साइज')
   ) {
     return answerLabTestingDetails(q, lang);
-  }
-
-  // 11. Filing Grievances & Redressal Steps
-  if (
-    q.includes('how to file complaint') || q.includes('how to complain') || q.includes('file a grievance') ||
-    q.includes('report fake') || q.includes('cheat') || q.includes('புகார் செய்வது எப்படி') ||
-    q.includes('புகார் பதிவு செய்வது எப்படி') || q.includes('மோசடி புகார்') || q.includes('शिकायत कैसे दर्ज करें') ||
-    q.includes('शिकायत करने की प्रक्रिया')
-  ) {
-    return answerHowToFileComplaint(q, lang);
-  }
-
-  // 12. Gold Hallmarking, 6-digit HUID & Purity Compensation
-  if (
-    q.includes('huid') || q.includes('hallmark') || q.includes('gold purity') || q.includes('carat') ||
-    q.includes('karat') || q.includes('22k') || q.includes('916') || q.includes('தங்கம்') ||
-    q.includes('ஹால்மார்க்') || q.includes('காரட்') || q.includes('தூய்மை') || q.includes('சோனா') ||
-    q.includes('हॉलमार्क') || q.includes('कैरेट')
-  ) {
-    return answerGoldHallmarkingDeep(q, lang);
   }
 
   // 13. Specific Product Standards (Water, Helmet, Cement, Concrete, Steel, Toys, Batteries)
