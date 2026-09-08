@@ -87,4 +87,4 @@ View interactive Swagger API docs at `http://localhost:8000/docs`.
 ---
 
 ## 📜 License & Branding
-Official Bureau of Indian Standards (BIS) colors (`#003082` Royal Blue and `#f26522` Saffron) and emblem specifications are strictly maintained across all user interface components.
+Official Bureau of Indian Standards (BIS) colors and emblem specifications are strictly maintained across all user interface components.
